@@ -1,121 +1,152 @@
 #!/usr/bin/env python3
-# host_nc.py  —— 纯 nc 版 REPL/压测
-import argparse, subprocess, os, sys, time, selectors, shutil
+import argparse
+import socket
+import sys
+from contextlib import contextmanager
 
-def check_nc(nc):
-    path = shutil.which(nc)
-    if not path:
-        print(f"[fatal] cannot find '{nc}' in PATH")
-        sys.exit(2)
-    return path
 
-def open_nc(nc, host, port, timeout=5):
-    # BSD nc 常用：-v -w 超时；不依赖 -N
-    return subprocess.Popen(
-        [nc, "-v", "-w", str(int(timeout)), host, str(port)],
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        bufsize=0
-    )
+def channel(value: str) -> int:
+  iv = int(value, 0)
+  if not 0 <= iv <= 255:
+    raise argparse.ArgumentTypeError("channel must be 0-255")
+  return iv
 
-def read_exact(pipe, n, sel, timeout=10.0):
-    """从 pipe 读满 n 字节，超时返回已读"""
-    out = bytearray()
-    end = time.time() + timeout
-    while len(out) < n:
-        remain = end - time.time()
-        if remain <= 0:
-            break
-        events = sel.select(remain)
-        if not events:  # 超时
-            break
-        for key, _ in events:
-            chunk = key.fileobj.read(n - len(out))
-            if not chunk:
-                return bytes(out)  # 对端关闭
-            out += chunk
-    return bytes(out)
 
-def run_repl_nc(nc, host, port, timeout=5, encoding="utf-8"):
-    nc = check_nc(nc)
-    print(f"[repl] nc {host}:{port}")
-    p = open_nc(nc, host, port, timeout)
-    sel = selectors.DefaultSelector()
-    sel.register(p.stdout, selectors.EVENT_READ)
+def create_connection(host: str, port: int, timeout: float):
+  try:
+    return socket.create_connection((host, port), timeout=timeout)
+  except OSError as exc:
+    raise SystemExit(f"[fatal] connect failed: {exc}") from exc
 
+
+def read_line(sock: socket.socket, timeout: float) -> str:
+  sock.settimeout(timeout)
+  data = bytearray()
+  while True:
     try:
-        print("type lines. Ctrl+C to quit.")
-        for line in sys.stdin:
-            data = line.encode(encoding, errors="ignore")
-            p.stdin.write(data); p.stdin.flush()
-            echo = read_exact(p.stdout, len(data), sel, timeout=10.0)
-            if echo:
-                print(f"[echo] {echo.decode(encoding, errors='ignore')}", end="")
-            else:
-                print("\n[repl] peer closed")
-                break
-    except KeyboardInterrupt:
-        pass
-    finally:
-        try:
-            p.stdin.close()
-        except Exception:
-            pass
-        p.terminate()
-        _ = p.communicate(timeout=0.2)[1] if p.poll() is None else None
+      chunk = sock.recv(1)
+    except socket.timeout as exc:
+      raise TimeoutError("timeout waiting for device response") from exc
 
-def bench_via_nc(nc, host, port, size_mb=4, chunk=1460, timeout=5):
-    nc = check_nc(nc)
-    total = size_mb * 1024 * 1024
-    payload = os.urandom(chunk)
-    sent = recv = 0
+    if not chunk:
+      if data:
+        return data.decode("utf-8", errors="replace")
+      raise ConnectionError("device closed the connection")
 
-    print(f"[bench-nc] {host}:{port} size={size_mb}MiB chunk={chunk}")
-    p = open_nc(nc, host, port, timeout)
-    sel = selectors.DefaultSelector()
-    sel.register(p.stdout, selectors.EVENT_READ)
+    if chunk == b"\n":
+      return data.decode("utf-8", errors="replace")
+    if chunk == b"\r":
+      continue
+    data.extend(chunk)
 
-    t0 = time.time(); last = t0
+
+def send_command(sock: socket.socket, timeout: float, command: str) -> str:
+  payload = (command + "\n").encode("ascii", errors="ignore")
+  sock.sendall(payload)
+  return read_line(sock, timeout)
+
+
+@contextmanager
+def open_client(host: str, port: int, timeout: float):
+  sock = create_connection(host, port, timeout)
+  try:
+    yield sock
+  finally:
     try:
-        while sent < total:
-            p.stdin.write(payload); p.stdin.flush()
-            sent += len(payload)
+      sock.shutdown(socket.SHUT_RDWR)
+    except OSError:
+      pass
+    sock.close()
 
-            r = read_exact(p.stdout, len(payload), sel, timeout=2.0)
-            recv += len(r)
 
-            now = time.time()
-            if now - last > 1.0:
-                print(f"  {sent/total*100:5.1f}%  recv={recv/1024/1024:6.2f} MiB")
-                last = now
+def do_set(args):
+  command = f"SET {args.r} {args.g} {args.b}"
+  with open_client(args.host, args.port, args.timeout) as sock:
+    reply = send_command(sock, args.timeout, command)
+    print(reply)
 
-            if not r:  # 对端关闭
-                print("[bench-nc] peer closed early"); break
-    except KeyboardInterrupt:
-        print("\n[bench-nc] interrupted")
-    finally:
+
+def do_off(args):
+  with open_client(args.host, args.port, args.timeout) as sock:
+    reply = send_command(sock, args.timeout, "OFF")
+    print(reply)
+
+
+def do_get(args):
+  with open_client(args.host, args.port, args.timeout) as sock:
+    reply = send_command(sock, args.timeout, "GET")
+    print(reply)
+
+
+def do_ping(args):
+  with open_client(args.host, args.port, args.timeout) as sock:
+    reply = send_command(sock, args.timeout, "PING")
+    print(reply)
+
+
+def do_repl(args):
+  print(f"[repl] connecting to {args.host}:{args.port}")
+  with open_client(args.host, args.port, args.timeout) as sock:
+    print("type commands like 'SET 255 0 0', 'GET', 'OFF'. Ctrl+C to exit.")
+    try:
+      while True:
         try:
-            p.stdin.close()
-        except Exception:
-            pass
-        p.terminate()
-        _ = p.communicate(timeout=0.2)[1] if p.poll() is None else None
+          line = input("rgb> ")
+        except EOFError:
+          print()
+          break
+        line = line.strip()
+        if not line:
+          continue
+        try:
+          reply = send_command(sock, args.timeout, line)
+          print(reply)
+        except Exception as exc:
+          print(f"[error] {exc}")
+          break
+    except KeyboardInterrupt:
+      print()
+  print("[repl] bye")
 
-    dt = max(time.time() - t0, 1e-9)
-    thr = (recv / 1024 / 1024) / dt
-    print(f"[bench-nc] time={dt:.3f}s goodput≈{thr:.2f} MiB/s")
+
+def build_parser():
+  ap = argparse.ArgumentParser(description="RGB LED Wi-Fi controller helper")
+  ap.add_argument("--host", required=True, help="ESP32 hostname or IP, e.g. esp32s3-rgb.local")
+  ap.add_argument("--port", type=int, default=12345)
+  ap.add_argument("--timeout", type=float, default=5.0, help="socket timeout seconds")
+  sub = ap.add_subparsers(required=True)
+
+  p_set = sub.add_parser("set", help="set RGB color (0-255)")
+  p_set.add_argument("r", type=channel)
+  p_set.add_argument("g", type=channel)
+  p_set.add_argument("b", type=channel)
+  p_set.set_defaults(func=do_set)
+
+  p_off = sub.add_parser("off", help="turn LED off")
+  p_off.set_defaults(func=do_off)
+
+  p_get = sub.add_parser("get", help="read current color")
+  p_get.set_defaults(func=do_get)
+
+  p_ping = sub.add_parser("ping", help="connectivity check")
+  p_ping.set_defaults(func=do_ping)
+
+  p_repl = sub.add_parser("repl", help="interactive command prompt")
+  p_repl.set_defaults(func=do_repl)
+
+  return ap
+
+
+def main(argv=None):
+  parser = build_parser()
+  args = parser.parse_args(argv)
+  try:
+    args.func(args)
+  except TimeoutError as exc:
+    raise SystemExit(f"[fatal] {exc}") from exc
+  except ConnectionError as exc:
+    raise SystemExit(f"[fatal] {exc}") from exc
+
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--host", required=True)
-    ap.add_argument("--port", type=int, default=12345)
-    ap.add_argument("--bench", action="store_true")
-    ap.add_argument("--size-mb", type=int, default=4)
-    ap.add_argument("--chunk", type=int, default=1460)
-    ap.add_argument("--timeout", type=float, default=5.0)
-    ap.add_argument("--nc", default="nc", help="nc/ncat 路径，默认 nc")
-    args = ap.parse_args()
-
-    if args.bench:
-        bench_via_nc(args.nc, args.host, args.port, args.size_mb, args.chunk, args.timeout)
-    else:
-        run_repl_nc(args.nc, args.host, args.port, args.timeout)
+  main(sys.argv[1:])
