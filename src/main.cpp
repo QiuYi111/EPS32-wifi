@@ -1,6 +1,7 @@
 #include <Arduino.h>
 
 #include "UnitreeMavlink.h"
+#include "UnitreeMavlinkControl.h"
 
 using namespace unitree::mav;
 
@@ -13,13 +14,14 @@ using namespace unitree::mav;
 #endif
 
 #ifndef UNITREE_BAUD_RATE
-#define UNITREE_BAUD_RATE 921600  // Replace if your Unitree device uses another rate
+#define UNITREE_BAUD_RATE 2000000  // Replace if your Unitree device uses another rate
 #endif
 
 HardwareSerial &unitree_serial = Serial1;
 
 UnitreeMavlinkParser parser;
 LidarPipeline lidar_pipeline;
+UnitreeMavlinkController controller(unitree_serial);
 
 static void handle_imu(const ImuSample &imu) {
   Serial.printf("[IMU] packet=%u quat=(%.3f, %.3f, %.3f, %.3f) ang_vel=(%.3f, %.3f, %.3f) lin_acc=(%.3f, %.3f, %.3f)\n",
@@ -49,7 +51,7 @@ static void handle_cloud(uint16_t packet_id, const std::vector<PointXYZI> &cloud
 
 void setup() {
   Serial.begin(115200);
-  delay(200);
+  delay(1);
   Serial.println("[Unitree Demo] booting");
 
   unitree_serial.begin(UNITREE_BAUD_RATE, SERIAL_8N1, UNITREE_RX_PIN, UNITREE_TX_PIN);
@@ -62,10 +64,13 @@ void setup() {
 
   Serial.printf("[Unitree Demo] UART ready (baud=%d, RX=%d, TX=%d)\n",
                 UNITREE_BAUD_RATE, UNITREE_RX_PIN, UNITREE_TX_PIN);
+
+  if (!controller.set_work_mode(UnitreeMavlinkController::WorkMode::kNormal)) {
+    Serial.println("[Unitree Demo] failed to set NORMAL mode");
+  }
 }
 
 void loop() {
   parser.poll(unitree_serial);
   delay(1);
 }
-

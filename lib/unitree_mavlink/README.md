@@ -3,17 +3,20 @@
 ESP32-oriented helpers for decoding Unitree LiDAR/IMU MAVLink streams.
 
 - Minimal usage demo: `examples/unitree_mavlink_demo/unitree_mavlink_demo.cpp`
+- Control helper for ESP32 firmware: see `UnitreeMavlinkController` in `UnitreeMavlinkControl.h`
 
 ## Usage
 
 ```cpp
 #include "UnitreeMavlink.h"
+#include "UnitreeMavlinkControl.h"
 
 using namespace unitree::mav;
 
 HardwareSerial &serial = Serial1;
 UnitreeMavlinkParser parser;
 LidarPipeline pipeline;
+UnitreeMavlinkController controller(serial);
 
 void setup() {
   serial.begin(921600, SERIAL_8N1, RX_PIN, TX_PIN);
@@ -33,6 +36,8 @@ void setup() {
   pipeline.set_cloud_callback([](uint16_t packet_id, const std::vector<PointXYZI> &cloud) {
     // point cloud ready
   });
+
+  controller.set_work_mode(UnitreeMavlinkController::WorkMode::kNormal);
 }
 
 void loop() {
