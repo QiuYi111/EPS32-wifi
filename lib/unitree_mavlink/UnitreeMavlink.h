@@ -6,9 +6,7 @@
 #include <functional>
 #include <vector>
 
-extern "C" {
-#include "unitree_lidar_sdk/include/mavlink/SysMavlink/mavlink.h"
-}
+#include <mavlink/SysMavlink/mavlink.h>
 
 namespace unitree::mav {
 
