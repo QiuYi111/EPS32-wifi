@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiDAR Control System</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- 3D Visualization Area -->
+        <main class="canvas-area">
+            <div id="canvas-container"></div>
+
+            <!-- HUD Overlays -->
+            <div class="hud-overlay hud-top-left">
+                <div><span class="hud-value" id="fps-display">0 FPS</span> <span class="hud-label">RENDER</span></div>
+            </div>
+
+            <div class="hud-overlay hud-top-right">
+                <div><span class="hud-value" id="point-count">0</span> <span class="hud-label">POINTS</span></div>
+            </div>
+
+            <div class="hud-overlay hud-bottom-left">
+                <div><span class="hud-label">PACKET ID:</span> <span class="hud-value" id="packet-id">0</span></div>
+            </div>
+        </main>
+
+        <!-- Sidebar Controls -->
+        <aside class="sidebar">
+            <header class="sidebar-header">
+                <div class="brand">
+                    <span class="material-symbols-outlined brand-icon">radar</span>
+                    <div class="brand-text">
+                        <h1>LiDAR Control</h1>
+                        <p>System v2.0</p>
+                    </div>
+                </div>
+                <button class="settings-btn icon-btn" id="btn-settings" title="Settings">
+                    <span class="material-symbols-outlined">settings</span>
+                </button>
+            </header>
+
+            <div class="sidebar-content">
+                <!-- Status Card -->
+                <div class="control-card">
+                    <div class="card-header">
+                        <span class="card-title">System Status</span>
+                        <div id="status-badge" class="status-badge disconnected">
+                            <span class="status-dot"></span>
+                            <span id="status-text">Disconnected</span>
+                        </div>
+                    </div>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <span class="data-label">PROTOCOL</span>
+                            <span class="data-value">WebSocket</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="data-label">FORMAT</span>
+                            <span class="data-value">Binary</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Motor Control Card -->
+                <div class="control-card">
+                    <div class="card-header">
+                        <span class="card-title">Motor Control</span>
+                    </div>
+
+                    <!-- Motor A -->
+                    <div class="motor-group">
+                        <div class="motor-header">
+                            <span class="motor-name">Motor A</span>
+                            <span class="motor-tag">PORT</span>
+                        </div>
+                        <div class="btn-grid">
+                            <button class="btn-control" data-motor="A" data-action="forward">FWD</button>
+                            <button class="btn-control" data-motor="A" data-action="backward">BWD</button>
+                            <button class="btn-control stop-btn active" data-motor="A" data-action="stop">STOP</button>
+                            <button class="btn-control" data-motor="A" data-action="brake">BRAKE</button>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-header">
+                                <span>SPEED</span>
+                                <span class="slider-value" id="val-A">512</span>
+                            </div>
+                            <input type="range" id="speed-A" min="0" max="1023" value="512">
+                        </div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--border-light); margin: 16px 0;">
+
+                    <!-- Motor B -->
+                    <div class="motor-group">
+                        <div class="motor-header">
+                            <span class="motor-name">Motor B</span>
+                            <span class="motor-tag">STBD</span>
+                        </div>
+                        <div class="btn-grid">
+                            <button class="btn-control" data-motor="B" data-action="forward">FWD</button>
+                            <button class="btn-control" data-motor="B" data-action="backward">BWD</button>
+                            <button class="btn-control stop-btn active" data-motor="B" data-action="stop">STOP</button>
+                            <button class="btn-control" data-motor="B" data-action="brake">BRAKE</button>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-header">
+                                <span>SPEED</span>
+                                <span class="slider-value" id="val-B">512</span>
+                            </div>
+                            <input type="range" id="speed-B" min="0" max="1023" value="512">
+                        </div>
+                    </div>
+
+                    <button class="action-btn filled-btn" id="send-cmd">
+                        <span class="material-symbols-outlined">send</span>
+                        <span>Send Commands</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Settings</h2>
+                <button class="close-modal" id="btn-close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">WebSocket URL</label>
+                    <input type="text" class="form-input" id="input-ws-url" placeholder="ws://localhost:81">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btn-cancel-settings">Cancel</button>
+                <button class="btn-primary" id="btn-save-settings">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
