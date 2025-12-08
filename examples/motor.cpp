@@ -80,16 +80,7 @@ void motorB_brake() {
 
 void loop() {
     // 示例：A 正转 50%，B 反转 80%
-    motorA_forward(1000);
-    motorB_backward(1000);  
-    delay(2000);
-    
-    motorA_stop();
-    motorB_stop();
-    delay(1000);
-
-    // A、B 刹车
-    motorA_brake();
-    motorB_brake();
-    delay(500);
+    motorA_backward(1000);
+    motorB_forward(1000);  
+ 
 }
