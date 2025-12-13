@@ -1,0 +1,16 @@
+[wokwi]
+version = 1
+firmware = "../../../.pio/build/esp32-s3-devkitc-1/firmware.bin"
+elf = "../../../.pio/build/esp32-s3-devkitc-1/firmware.elf"
+
+# 启用 RFC2217 虚拟串口 - Python 脚本可通过 rfc2217://localhost:4000 连接
+rfc2217ServerPort = 4000
+
+# 使用本地运行的 wokwigw 网关
+[net]
+gateway = "ws://localhost:9011"
+
+# UDP 端口转发 - ESP32 发送到 host.wokwi.internal:8888 会转发到本机
+[[net.forward]]
+from = "localhost:8888"
+to = "target:8888"
