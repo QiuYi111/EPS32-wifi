@@ -1,0 +1,6 @@
+[wokwi]
+version = 1
+firmware = "../../../.pio/build/esp32-s3-devkitc-1/firmware.bin"
+elf = "../../../.pio/build/esp32-s3-devkitc-1/firmware.elf"
+# 启用 RFC2217 虚拟串口转发 - Python 脚本可通过 rfc2217://localhost:4000 连接
+rfc2217ServerPort = 4000
