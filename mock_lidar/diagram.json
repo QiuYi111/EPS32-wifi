@@ -33,8 +33,8 @@
     }
   ],
   "connections": [
-    ["esp32-mock-lidar:TX", "esp32-main:18", "green", ["h20"]],
-    ["esp32-mock-lidar:RX", "esp32-main:17", "blue", ["h20"]],
+[ "esp32-mock-lidar:17", "esp32-main:18", "green", [ "v20", "h50" ] ],
+    [ "esp32-mock-lidar:18", "esp32-main:17", "blue", [ "v-20", "h50" ] ],
     ["esp32-mock-lidar:GND.1", "esp32-main:GND.1", "black", ["v10", "h50"]],
     ["esp32-mock-lidar:3V3", "esp32-main:3V3", "red", ["v-10", "h50"]]
   ]
