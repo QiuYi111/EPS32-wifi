@@ -1,0 +1,11 @@
+[wokwi]
+version = 1
+firmware = "../../../.pio/build/esp32-s3-devkitc-1/firmware.bin"
+elf = "../../../.pio/build/esp32-s3-devkitc-1/firmware.elf"
+
+# RFC2217 虚拟串口 - Mock LiDAR 通过此端口发送 MAVLink 数据到 ESP32 Serial1
+rfc2217ServerPort = 4000
+
+# 私有网关 - ESP32 WebSocket 通过此网关连接到本机 ws_server.py
+[net]
+gateway = "ws://localhost:9011"
