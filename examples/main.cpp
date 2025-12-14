@@ -28,20 +28,20 @@
 
 // UART 配置 (Unitree LiDAR)
 #ifndef UNITREE_RX_PIN
-#define UNITREE_RX_PIN 18
+#define UNITREE_RX_PIN 16
 #endif
 #ifndef UNITREE_TX_PIN
-#define UNITREE_TX_PIN 17
+#define UNITREE_TX_PIN 15
 #endif
 #ifndef UNITREE_BAUD_RATE
-#define UNITREE_BAUD_RATE 921600
+#define UNITREE_BAUD_RATE 2000000 
 #endif
 
 // 电机引脚
-#define MOTOR_IN1 21
-#define MOTOR_IN2 20
-#define MOTOR_IN3 1
-#define MOTOR_IN4 2
+#define MOTOR_IN1 6
+#define MOTOR_IN2 7
+#define MOTOR_IN3 4
+#define MOTOR_IN4 5
 
 // WebSocket 端口
 #define WS_PORT 81
@@ -290,6 +290,7 @@ void setup() {
 }
 
 void loop() {
+
   // 处理 WebSocket
   webSocket.loop();
 
