@@ -270,40 +270,48 @@ void send_status() {
 
 void setup() {
   // 调试串口
-  Serial.begin(115200);
-  delay(500);
+  // Serial.begin(115200);
+  // delay(500);
 
-  Serial.println("\n========================================");
-  Serial.println("  ESP32 LiDAR Bridge + Motor Control");
-  Serial.println("  (Hybrid Architecture)");
-  Serial.println("========================================\n");
+  // Serial.println("\n========================================");
+  // Serial.println("  ESP32 LiDAR Bridge + Motor Control");
+  // Serial.println("  (Hybrid Architecture)");
+  // Serial.println("========================================\n");
 
   // 初始化电机
   motors.begin();
   motors.stopA();
   motors.stopB();
-  Serial.println("[Motor] Initialized");
+  // Serial.println("[Motor] Initialized");
+  // Serial.println("[TEST] Force Motor A RUN 1000 for 1s...");
+  motors.setSpeedA(1000); // 接近全速
+  motors.setSpeedB(1000);
+  delay(1000); // 堵塞式延时，观察电机动不动
+  motors.stopA();
+  motors.stopB();
+  // Serial.println("[TEST] Motor STOP");
 
   // 初始化 LiDAR 串口 (关键：先设置缓冲区！)
   lidar_serial.setRxBufferSize(UART_RX_BUFFER_SIZE);
   lidar_serial.begin(LIDAR_BAUD_RATE, SERIAL_8N1, LIDAR_RX_PIN, LIDAR_TX_PIN);
-  Serial.printf("[UART] LiDAR ready (baud=%d, RX=%d, TX=%d, buf=%dKB)\n",
-                LIDAR_BAUD_RATE, LIDAR_RX_PIN, LIDAR_TX_PIN,
-                UART_RX_BUFFER_SIZE / 1024);
+  // Serial.printf("[UART] LiDAR ready (baud=%d, RX=%d, TX=%d, buf=%dKB)\n",
+  //               LIDAR_BAUD_RATE, LIDAR_RX_PIN, LIDAR_TX_PIN,
+  //               UART_RX_BUFFER_SIZE / 1024);
 
   // 启动 WiFi AP
   WiFi.mode(WIFI_AP);
   WiFi.softAP(AP_SSID, AP_PASS);
   delay(100);
-  Serial.printf("[WiFi] AP Started - SSID: %s\n", AP_SSID);
-  Serial.printf("[WiFi] AP IP: %s\n", WiFi.softAPIP().toString().c_str());
+  // Serial.printf("[WiFi] AP Started - SSID: %s\n", AP_SSID);
+  // Serial.printf("[WiFi] AP IP: %s\n", WiFi.softAPIP().toString().c_str());
 
   // 启动 WebSocket 服务器
   ws_server.begin();
   ws_server.onEvent(on_ws_event);
-  Serial.printf("[WS] Server started on port %d\n", WS_PORT);
+  // Serial.printf("[WS] Server started on port %d\n", WS_PORT);
 
-  Serial.println("\n[System] Ready! Waiting for clients...\n");
+  // Serial.println("\n[System] Ready! Waiting for clients...\n");
+  delay(100);
 }
 
 void loop() {
@@ -334,13 +342,13 @@ void loop() {
     last_status_time = now;
   }
 
-  // ========== 调试日志 (5s) ==========
-  if (now - last_log_time >= 5000) {
-    Serial.printf("[Stats] Heap=%uKB, LiDAR=%luKB, Clients=%d\n",
-                  ESP.getFreeHeap() / 1024, total_lidar_bytes / 1024,
-                  ws_server.connectedClients());
-    last_log_time = now;
-  }
+  // // ========== 调试日志 (5s) ==========
+  // if (now - last_log_time >= 5000) {
+  //   Serial.printf("[Stats] Heap=%uKB, LiDAR=%luKB, Clients=%d\n",
+  //                 ESP.getFreeHeap() / 1024, total_lidar_bytes / 1024,
+  //                 ws_server.connectedClients());
+  //   last_log_time = now;
+  // }
 
   // 不要 delay，让 loop 尽快返回以处理串口数据
 }
