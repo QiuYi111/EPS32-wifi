@@ -1,10 +1,10 @@
 #include <Arduino.h>
 
 // 引脚定义
-#define IN1 21
-#define IN2 20
-#define IN3 1
-#define IN4 2
+#define IN1 6
+#define IN2 7
+#define IN3 4
+#define IN4 5
 
 // LEDC 通道
 #define CH_A1 0   // Motor A 使用 IN1 的 PWM

@@ -307,6 +307,10 @@ void setup() {
 }
 
 void loop() {
+  // ========== 最高优先级: WebSocket 事件 (电机命令) ==========
+  // 电机命令是低频关键指令，必须优先处理！
+  ws_server.loop();
+
   // ========== 高优先级: 透传 LiDAR 数据 ==========
   int uart_available = lidar_serial.available();
   if (uart_available > 0) {
@@ -323,9 +327,6 @@ void loop() {
     }
   }
 
-  // ========== 中优先级: WebSocket 事件 ==========
-  ws_server.loop();
-
   // ========== 低优先级: 状态上报 (1Hz) ==========
   uint32_t now = millis();
   if (now - last_status_time >= 1000) {
@@ -333,7 +334,7 @@ void loop() {
     last_status_time = now;
   }
 
-  // ========== 调试日志 (5Hz) ==========
+  // ========== 调试日志 (5s) ==========
   if (now - last_log_time >= 5000) {
     Serial.printf("[Stats] Heap=%uKB, LiDAR=%luKB, Clients=%d\n",
                   ESP.getFreeHeap() / 1024, total_lidar_bytes / 1024,
