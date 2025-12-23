@@ -42,12 +42,22 @@
                         <p>System v2.0</p>
                     </div>
                 </div>
-                <button class="settings-btn icon-btn" id="btn-settings" title="Settings">
-                    <span class="material-symbols-outlined">settings</span>
-                </button>
+                <div class="header-actions">
+                    <div class="mode-toggle">
+                        <span class="mode-label">Visitor Mode</span>
+                        <label class="switch">
+                            <input type="checkbox" id="mode-toggle-checkbox">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <button class="settings-btn icon-btn" id="btn-settings" title="Settings">
+                        <span class="material-symbols-outlined">settings</span>
+                    </button>
+                </div>
             </header>
 
-            <div class="sidebar-content">
+            <!-- Sidebar Content (Developer Mode) -->
+            <div class="sidebar-content" id="developer-controls">
                 <!-- Status Card -->
                 <div class="control-card">
                     <div class="card-header">
@@ -133,6 +143,59 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Visitor Controls (Simplified) -->
+            <div class="sidebar-content hidden" id="visitor-controls">
+                <div class="control-card">
+                    <div class="card-header">
+                        <span class="card-title">Driver Control</span>
+                    </div>
+                    <p class="card-desc">Use the joystick below or WASD keys to drive the robot.</p>
+
+                    <div class="joystick-wrapper">
+                        <div id="joystick-container">
+                            <!-- Visual D-Pad for now, easily upgraded to Virtual Joystick -->
+                            <div class="dpad">
+                                <button class="dpad-btn up" id="dpad-up"><span
+                                        class="material-symbols-outlined">expand_less</span></button>
+                                <button class="dpad-btn left" id="dpad-left"><span
+                                        class="material-symbols-outlined">chevron_left</span></button>
+                                <button class="dpad-btn stop" id="dpad-stop"><span
+                                        class="material-symbols-outlined">stop</span></button>
+                                <button class="dpad-btn right" id="dpad-right"><span
+                                        class="material-symbols-outlined">chevron_right</span></button>
+                                <button class="dpad-btn down" id="dpad-down"><span
+                                        class="material-symbols-outlined">expand_more</span></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="speed-selector">
+                        <label>Cruise Speed</label>
+                        <div class="speed-presets">
+                            <button class="speed-chip active" data-speed="400">Slow</button>
+                            <button class="speed-chip" data-speed="700">Med</button>
+                            <button class="speed-chip" data-speed="1023">Fast</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-card">
+                    <div class="card-header">
+                        <span class="card-title">Live View</span>
+                    </div>
+                    <div class="mini-status">
+                        <div class="mini-stat">
+                            <span class="material-symbols-outlined">distance</span>
+                            <span id="visitor-points">0</span> pts
+                        </div>
+                        <div class="mini-stat">
+                            <span class="material-symbols-outlined">speed</span>
+                            <span id="visitor-fps">0</span> fps
+                        </div>
+                    </div>
+                </div>
+            </div>
         </aside>
     </div>
 
@@ -152,6 +215,64 @@
             <div class="modal-footer">
                 <button class="btn-secondary" id="btn-cancel-settings">Cancel</button>
                 <button class="btn-primary" id="btn-save-settings">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Onboarding Overlay -->
+    <div class="onboarding-overlay" id="onboarding-overlay">
+        <div class="onboarding-card" id="onboarding-card">
+            <div class="onboarding-content" id="step-1">
+                <div class="onboarding-icon">🤖</div>
+                <h2>Hi there, Explorer!</h2>
+                <p>Welcome to your robot control center! Want to learn how to drive this cool robot? Let's go!</p>
+                <button class="onboarding-btn next-step" data-next="step-2">Let's Play!</button>
+                <button class="onboarding-link skip-tour">I already know how</button>
+            </div>
+
+            <div class="onboarding-content hidden" id="step-2">
+                <div class="onboarding-icon" style="color: var(--md-sys-color-primary);">radar</div>
+                <h2>How Robots "See"</h2>
+                <p>The robot uses a laser to draw dots in the dark! These dots show us where walls and toys are. It's
+                    like having special laser-eyes!</p>
+                <div class="tour-highlight-ref" data-target=".canvas-area"></div>
+                <button class="onboarding-btn next-step" data-next="step-3">Next: Looking Around</button>
+            </div>
+
+            <div class="onboarding-content hidden" id="step-3">
+                <div class="onboarding-icon">👀</div>
+                <h2>Look Around</h2>
+                <p>Use your mouse to <b>drag</b> and spin the map! You can also use your scroll wheel to <b>zoom in and
+                        out</b>. Try to see the robot from different sides!</p>
+                <div class="tour-highlight-ref" data-target=".canvas-area"></div>
+                <button class="onboarding-btn next-step" data-next="step-4">Next: Steering</button>
+            </div>
+
+            <div class="onboarding-content hidden" id="step-4">
+                <div class="onboarding-icon">🎮</div>
+                <h2>The Steering Wheel</h2>
+                <p>Use these buttons to drive! 🔼 is Forward, 🔽 is Backward. ◀️ and ▶️ make the robot spin! You can
+                    also use the <b>W-A-S-D</b> keys on your keyboard!</p>
+                <div class="tour-highlight-ref" data-target=".dpad"></div>
+                <button class="onboarding-btn next-step" data-next="step-5">Next: Cruising Speed</button>
+            </div>
+
+            <div class="onboarding-content hidden" id="step-5">
+                <div class="onboarding-icon">🏎️</div>
+                <h2>Pick Your Speed</h2>
+                <p>Want to go slow or fast? Click <b>Slow</b> for a careful crawl, or <b>Fast</b> if you have a lot of
+                    room. <b>Med</b> is just right for most fun!</p>
+                <div class="tour-highlight-ref" data-target=".speed-presets"></div>
+                <button class="onboarding-btn next-step" data-next="step-6">Next: Be Safe!</button>
+            </div>
+
+            <div class="onboarding-content hidden" id="step-6">
+                <div class="onboarding-icon" style="color: var(--md-sys-color-error);">stop_circle</div>
+                <h2>The Emergency Brake</h2>
+                <p>Oops! Might hit something? Click this big <b>RED STOP</b> button or hit the <b>Spacebar</b> on your
+                    keyboard. It's the robot's best friend!</p>
+                <div class="tour-highlight-ref" data-target=".dpad-btn.stop"></div>
+                <button class="onboarding-btn next-step" id="finish-tour" data-next="done">I'm Ready! Let's Go!</button>
             </div>
         </div>
     </div>

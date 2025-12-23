@@ -221,7 +221,11 @@ const state = {
     motor: {
         A: { action: 'stop', speed: 512 },
         B: { action: 'stop', speed: 512 }
-    }
+    },
+    // Visitor Mode State
+    isVisitorMode: localStorage.getItem('is_visitor_mode') === 'true',
+    visitorSpeed: 400,
+    onboardingComplete: localStorage.getItem('onboarding_complete') === 'true'
 };
 
 // === 3D Visualization Engine (Three.js) ===
@@ -569,7 +573,58 @@ const UI = {
     },
 
     bindEvents() {
-        // Motor Controls
+        // Visitor Mode Toggle
+        const modeToggle = document.getElementById('mode-toggle-checkbox');
+        modeToggle.checked = state.isVisitorMode;
+        modeToggle.addEventListener('change', (e) => {
+            this.toggleVisitorMode(e.target.checked);
+        });
+
+        // Visitor D-Pad
+        ['up', 'down', 'left', 'right', 'stop'].forEach(dir => {
+            const btn = document.getElementById(`dpad-${dir}`);
+            if (btn) {
+                btn.addEventListener('mousedown', () => this.handleDpadCommand(dir, true));
+                btn.addEventListener('mouseup', () => this.handleDpadCommand(dir, false));
+                btn.addEventListener('mouseleave', () => this.handleDpadCommand(dir, false));
+                // Touch support
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.handleDpadCommand(dir, true);
+                });
+                btn.addEventListener('touchend', () => this.handleDpadCommand(dir, false));
+            }
+        });
+
+        // Speed Chips
+        document.querySelectorAll('.speed-chip').forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                const speed = parseInt(e.target.dataset.speed);
+                state.visitorSpeed = speed;
+                document.querySelectorAll('.speed-chip').forEach(c => c.classList.remove('active'));
+                e.target.classList.add('active');
+            });
+        });
+
+        // Onboarding Navigation
+        document.querySelectorAll('.next-step').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const nextStep = e.target.dataset.next;
+                if (nextStep === 'done') {
+                    Tour.finish();
+                } else {
+                    Tour.goToStep(nextStep);
+                }
+            });
+        });
+
+        document.querySelector('.skip-tour').addEventListener('click', () => Tour.finish());
+
+        // Keyboard Support
+        window.addEventListener('keydown', (e) => this.handleKeyboard(e, true));
+        window.addEventListener('keyup', (e) => this.handleKeyboard(e, false));
+
+        // Motor Controls (Original)
         document.querySelectorAll('.btn-control').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const motor = e.target.dataset.motor;
@@ -672,10 +727,95 @@ const UI = {
         }
     },
 
+    toggleVisitorMode(enabled) {
+        state.isVisitorMode = enabled;
+        localStorage.setItem('is_visitor_mode', enabled);
+
+        const devControls = document.getElementById('developer-controls');
+        const visitorControls = document.getElementById('visitor-controls');
+        const hudElements = document.querySelectorAll('.hud-overlay:not(.hud-top-right)');
+
+        if (enabled) {
+            devControls.classList.add('hidden');
+            visitorControls.classList.remove('hidden');
+            hudElements.forEach(el => el.classList.add('hidden'));
+            UI.showToast('Visitor Mode Active', 'info');
+        } else {
+            devControls.classList.remove('hidden');
+            visitorControls.classList.add('hidden');
+            hudElements.forEach(el => el.classList.remove('hidden'));
+            UI.showToast('Developer Mode Active', 'info');
+        }
+    },
+
+    handleDpadCommand(dir, isPressed) {
+        if (!isPressed) {
+            Network.sendMotorCommand(0, 0, true, true);
+            return;
+        }
+
+        const speed = state.visitorSpeed;
+        switch (dir) {
+            case 'up':
+                Network.sendMotorCommand(speed, speed);
+                break;
+            case 'down':
+                Network.sendMotorCommand(-speed, -speed);
+                break;
+            case 'left':
+                Network.sendMotorCommand(-speed, speed);
+                break;
+            case 'right':
+                Network.sendMotorCommand(speed, -speed);
+                break;
+            case 'stop':
+                Network.sendMotorCommand(0, 0, true, true);
+                break;
+        }
+    },
+
+    handleKeyboard(e, isPressed) {
+        // Only handle if not in an input field
+        if (e.target.tagName === 'INPUT') return;
+
+        const key = e.key.toLowerCase();
+        const keyMap = {
+            'w': 'up',
+            's': 'down',
+            'a': 'left',
+            'd': 'right',
+            ' ': 'stop',
+            'arrowup': 'up',
+            'arrowdown': 'down',
+            'arrowleft': 'left',
+            'arrowright': 'right'
+        };
+
+        if (keyMap[key]) {
+            e.preventDefault();
+            this.handleDpadCommand(keyMap[key], isPressed);
+
+            // Visual feedback for D-Pad buttons
+            const btn = document.getElementById(`dpad-${keyMap[key]}`);
+            if (btn) {
+                if (isPressed) btn.classList.add('active');
+                else btn.classList.remove('active');
+            }
+        }
+    },
+
     updateStats() {
         document.getElementById('packet-id').textContent = state.lastPacketId;
         const pointCount = state.pointCount || 0;
         document.getElementById('point-count').textContent = pointCount;
+
+        // Visitor View Stats
+        const visitorPoints = document.getElementById('visitor-points');
+        if (visitorPoints) visitorPoints.textContent = pointCount;
+
+        const visitorFps = document.getElementById('visitor-fps');
+        if (visitorFps) visitorFps.textContent = state.fps;
+
         this.fpsCounter++; // Actually count data frames
     },
 
@@ -704,18 +844,86 @@ const UI = {
     },
 
     showToast(msg, type = 'info') {
-        // Simple console log for now, could be expanded to a real toast
         console.log(`[${type.toUpperCase()}] ${msg}`);
-
-        const btn = document.getElementById('send-cmd');
-        const originalText = btn.innerHTML;
-
-        if (msg === 'Commands Sent') {
-            btn.innerHTML = '<span>Sent ✓</span>';
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-            }, 2000);
+        // Simple visual feedback for motor commands if in dev mode
+        if (!state.isVisitorMode) {
+            const btn = document.getElementById('send-cmd');
+            const originalText = btn.innerHTML;
+            if (msg === 'Commands Sent') {
+                btn.innerHTML = '<span>Sent ✓</span>';
+                setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+            }
         }
+    }
+};
+
+// === Tour Manager ===
+const Tour = {
+    init() {
+        if (!state.onboardingComplete) {
+            document.getElementById('onboarding-overlay').classList.remove('hidden');
+            this.goToStep('step-1');
+        } else {
+            document.getElementById('onboarding-overlay').classList.add('hidden');
+            // If visitor mode was previously saved, apply it
+            UI.toggleVisitorMode(state.isVisitorMode);
+        }
+    },
+
+    goToStep(stepId) {
+        this.cleanupHighlight(); // Clear previous highlight first
+
+        document.querySelectorAll('.onboarding-content').forEach(el => el.classList.add('hidden'));
+        const nextStep = document.getElementById(stepId);
+
+        if (nextStep) {
+            nextStep.classList.remove('hidden');
+
+            // Special handling: Enable visitor mode for control-related steps
+            if (['step-4', 'step-5', 'step-6'].includes(stepId)) {
+                if (!state.isVisitorMode) {
+                    UI.toggleVisitorMode(true);
+                    document.getElementById('mode-toggle-checkbox').checked = true;
+                }
+            }
+
+            // Highlight targets (optional feature)
+            const targetSelector = nextStep.querySelector('.tour-highlight-ref')?.dataset.target;
+            if (targetSelector) {
+                const target = document.querySelector(targetSelector);
+                if (target) {
+                    target.style.outline = '4px solid var(--md-sys-color-primary)';
+                    target.style.boxShadow = '0 0 0 1000vw rgba(0,0,0,0.5)';
+                    target.style.zIndex = '500';
+                    target.style.position = 'relative'; // Ensure z-index works
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    // Cleanup highlight when moving to next step
+                    this.currentTarget = target;
+                }
+            }
+        }
+    },
+
+    cleanupHighlight() {
+        if (this.currentTarget) {
+            this.currentTarget.style.outline = '';
+            this.currentTarget.style.boxShadow = '';
+            this.currentTarget.style.zIndex = '';
+            this.currentTarget.style.position = '';
+            this.currentTarget = null;
+        }
+    },
+
+    finish() {
+        this.cleanupHighlight();
+        document.getElementById('onboarding-overlay').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('onboarding-overlay').classList.add('hidden');
+            state.onboardingComplete = true;
+            localStorage.setItem('onboarding_complete', 'true');
+            UI.toggleVisitorMode(true); // Default to visitor mode after tour
+        }, 500);
     }
 };
 
@@ -723,5 +931,7 @@ const UI = {
 window.addEventListener('DOMContentLoaded', () => {
     Visualizer.init();
     UI.init();
+    Tour.init(); // Initialize tour after UI
     Network.connect();
 });
+
