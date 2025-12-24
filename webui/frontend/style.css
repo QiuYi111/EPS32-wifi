@@ -714,7 +714,10 @@ input:checked+.slider:before {
     align-items: center;
     justify-content: center;
     z-index: 400;
+    /* Backdrop layer */
     transition: opacity 0.5s ease;
+    pointer-events: none;
+    /* Let clicks pass through to highlighted elements if needed, or controlled by card */
 }
 
 .onboarding-card {
@@ -726,9 +729,15 @@ input:checked+.slider:before {
     max-width: 480px;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
     text-align: center;
-    position: relative;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     z-index: 600;
+    /* Above the highlighted element (500) */
     animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: auto;
+    /* Always clickable */
 }
 
 @keyframes slideUp {
