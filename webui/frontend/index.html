@@ -50,6 +50,9 @@
                             <span class="slider round"></span>
                         </label>
                     </div>
+                    <button class="help-btn icon-btn" id="btn-help" title="查看教程">
+                        <span class="material-symbols-outlined">help</span>
+                    </button>
                     <button class="settings-btn icon-btn" id="btn-settings" title="设置">
                         <span class="material-symbols-outlined">settings</span>
                     </button>
@@ -220,55 +223,54 @@
     </div>
 
     <!-- Onboarding Overlay -->
-    <div class="onboarding-overlay" id="onboarding-overlay">
-        <div class="onboarding-card" id="onboarding-card">
-            <div class="onboarding-content" id="step-1">
-                <div class="onboarding-icon">🤖</div>
-                <h2>你好，探险家！</h2>
-                <p>欢迎来到机器人控制中心！想学习如何驾驶这个酷炫的机器人吗？让我们开始吧！</p>
-                <button class="onboarding-btn next-step" data-next="step-2">开始玩吧！</button>
-                <button class="onboarding-link skip-tour">我已经知道了</button>
-            </div>
+    <div class="onboarding-overlay" id="onboarding-overlay"></div>
+    <div class="onboarding-card" id="onboarding-card">
+        <div class="onboarding-content" id="step-1">
+            <div class="onboarding-icon">🤖</div>
+            <h2>你好，探险家！</h2>
+            <p>欢迎来到机器人控制中心！想学习如何驾驶这个酷炫的机器人吗？让我们开始吧！</p>
+            <button class="onboarding-btn next-step" data-next="step-2">开始玩吧！</button>
+            <button class="onboarding-link skip-tour">我已经知道了</button>
+        </div>
 
-            <div class="onboarding-content hidden" id="step-2">
-                <div class="onboarding-icon" style="color: var(--md-sys-color-primary);">radar</div>
-                <h2>机器人如何“看”</h2>
-                <p>机器人使用激光在黑暗中绘制点！这些点告诉我们墙壁和玩具在哪里。就像拥有特殊的激光眼！</p>
-                <div class="tour-highlight-ref" data-target=".canvas-area"></div>
-                <button class="onboarding-btn next-step" data-next="step-3">下一步：观察四周</button>
-            </div>
+        <div class="onboarding-content hidden" id="step-2">
+            <div class="onboarding-icon" style="color: var(--md-sys-color-primary);">radar</div>
+            <h2>机器人如何“看”</h2>
+            <p>机器人使用激光在黑暗中绘制点！这些点告诉我们墙壁和玩具在哪里。就像拥有特殊的激光眼！</p>
+            <div class="tour-highlight-ref" data-target=".canvas-area"></div>
+            <button class="onboarding-btn next-step" data-next="step-3">下一步：观察四周</button>
+        </div>
 
-            <div class="onboarding-content hidden" id="step-3">
-                <div class="onboarding-icon">👀</div>
-                <h2>观察四周</h2>
-                <p>使用鼠标拖动并旋转地图！你也可以使用滚轮放大或缩小。尝试从不同角度观察机器人！</p>
-                <div class="tour-highlight-ref" data-target=".canvas-area"></div>
-                <button class="onboarding-btn next-step" data-next="step-4">下一步：转向</button>
-            </div>
+        <div class="onboarding-content hidden" id="step-3">
+            <div class="onboarding-icon">👀</div>
+            <h2>观察四周</h2>
+            <p>使用鼠标拖动并旋转地图！你也可以使用滚轮放大或缩小。尝试从不同角度观察机器人！</p>
+            <div class="tour-highlight-ref" data-target=".canvas-area"></div>
+            <button class="onboarding-btn next-step" data-next="step-4">下一步：转向</button>
+        </div>
 
-            <div class="onboarding-content hidden" id="step-4">
-                <div class="onboarding-icon">🎮</div>
-                <h2>方向盘</h2>
-                <p>使用这些按钮来驾驶！🔼 是前进，🔽 是后退。◀️ 和 ▶️ 让机器人旋转！你也可以使用键盘上的 W-A-S-D 键！</p>
-                <div class="tour-highlight-ref" data-target=".dpad"></div>
-                <button class="onboarding-btn next-step" data-next="step-5">下一步：巡航速度</button>
-            </div>
+        <div class="onboarding-content hidden" id="step-4">
+            <div class="onboarding-icon">🎮</div>
+            <h2>方向盘</h2>
+            <p>使用这些按钮来驾驶！🔼 是前进，🔽 是后退。◀️ 和 ▶️ 让机器人旋转！你也可以使用键盘上的 W-A-S-D 键！</p>
+            <div class="tour-highlight-ref" data-target=".dpad"></div>
+            <button class="onboarding-btn next-step" data-next="step-5">下一步：巡航速度</button>
+        </div>
 
-            <div class="onboarding-content hidden" id="step-5">
-                <div class="onboarding-icon">🏎️</div>
-                <h2>选择你的速度</h2>
-                <p>想走慢点还是快点？点击“慢速”进行小心爬行，或者如果你有足够的空间，选择“快速”。“中速”最适合大多数乐趣！</p>
-                <div class="tour-highlight-ref" data-target=".speed-presets"></div>
-                <button class="onboarding-btn next-step" data-next="step-6">下一步：安全第一！</button>
-            </div>
+        <div class="onboarding-content hidden" id="step-5">
+            <div class="onboarding-icon">🏎️</div>
+            <h2>选择你的速度</h2>
+            <p>想走慢点还是快点？点击“慢速”进行小心爬行，或者如果你有足够的空间，选择“快速”。“中速”最适合大多数乐趣！</p>
+            <div class="tour-highlight-ref" data-target=".speed-presets"></div>
+            <button class="onboarding-btn next-step" data-next="step-6">下一步：安全第一！</button>
+        </div>
 
-            <div class="onboarding-content hidden" id="step-6">
-                <div class="onboarding-icon" style="color: var(--md-sys-color-error);">stop_circle</div>
-                <h2>紧急制动</h2>
-                <p>哎呀！可能会撞到东西？点击这个巨大的红色停止按钮，或者按下键盘上的空格键。它是机器人最好的朋友！</p>
-                <div class="tour-highlight-ref" data-target=".dpad-btn.stop"></div>
-                <button class="onboarding-btn next-step" id="finish-tour" data-next="done">我准备好了！出发！</button>
-            </div>
+        <div class="onboarding-content hidden" id="step-6">
+            <div class="onboarding-icon" style="color: var(--md-sys-color-error);">stop_circle</div>
+            <h2>紧急制动</h2>
+            <p>哎呀！可能会撞到东西？点击这个巨大的红色停止按钮，或者按下键盘上的空格键。它是机器人最好的朋友！</p>
+            <div class="tour-highlight-ref" data-target=".dpad-btn.stop"></div>
+            <button class="onboarding-btn next-step" id="finish-tour" data-next="done">我准备好了！出发！</button>
         </div>
     </div>
 

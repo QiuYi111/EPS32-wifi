@@ -683,6 +683,9 @@ const UI = {
             overlay.classList.remove('open');
         });
 
+        // Help Button
+        document.getElementById('btn-help').addEventListener('click', () => Tour.start());
+
         document.getElementById('btn-save-settings').addEventListener('click', () => {
             const newUrl = document.getElementById('input-ws-url').value;
             if (newUrl) {
@@ -861,13 +864,26 @@ const UI = {
 const Tour = {
     init() {
         if (!state.onboardingComplete) {
-            document.getElementById('onboarding-overlay').classList.remove('hidden');
-            this.goToStep('step-1');
+            this.start();
         } else {
             document.getElementById('onboarding-overlay').classList.add('hidden');
+            document.getElementById('onboarding-card').classList.add('hidden');
             // If visitor mode was previously saved, apply it
             UI.toggleVisitorMode(state.isVisitorMode);
         }
+    },
+
+    start() {
+        const overlay = document.getElementById('onboarding-overlay');
+        const card = document.getElementById('onboarding-card');
+
+        // Reset styles in case they were left at 0 opacity
+        overlay.style.opacity = '1';
+        card.style.opacity = '1';
+
+        overlay.classList.remove('hidden');
+        card.classList.remove('hidden');
+        this.goToStep('step-1');
     },
 
     goToStep(stepId) {
@@ -918,8 +934,10 @@ const Tour = {
     finish() {
         this.cleanupHighlight();
         document.getElementById('onboarding-overlay').style.opacity = '0';
+        document.getElementById('onboarding-card').style.opacity = '0';
         setTimeout(() => {
             document.getElementById('onboarding-overlay').classList.add('hidden');
+            document.getElementById('onboarding-card').classList.add('hidden');
             state.onboardingComplete = true;
             localStorage.setItem('onboarding_complete', 'true');
             UI.toggleVisitorMode(true); // Default to visitor mode after tour
