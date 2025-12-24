@@ -387,21 +387,21 @@ const Network = {
         }
 
         UI.updateConnectionStatus('connecting');
-        console.log(`Connecting to ${state.wsUrl}...`);
+        console.log(`正在连接到 ${state.wsUrl}...`);
 
         try {
             state.ws = new WebSocket(state.wsUrl);
             state.ws.binaryType = 'arraybuffer';
 
             state.ws.onopen = () => {
-                console.log('WebSocket Connected');
+                console.log('WebSocket 已连接');
                 state.isConnected = true;
                 UI.updateConnectionStatus('connected');
-                UI.showToast('Connected to LiDAR Server', 'success');
+                UI.showToast('已连接到 LiDAR 服务器', 'success');
             };
 
             state.ws.onclose = () => {
-                console.log('WebSocket Disconnected');
+                console.log('WebSocket 已断开');
                 state.isConnected = false;
                 UI.updateConnectionStatus('disconnected');
 
@@ -410,7 +410,7 @@ const Network = {
             };
 
             state.ws.onerror = (err) => {
-                console.error('WebSocket Error', err);
+                console.error('WebSocket 错误', err);
                 state.isConnected = false;
                 UI.updateConnectionStatus('error');
             };
@@ -422,7 +422,7 @@ const Network = {
             };
 
         } catch (e) {
-            console.error('Connection failed', e);
+            console.error('连接失败', e);
             UI.updateConnectionStatus('error');
         }
     },
@@ -522,7 +522,7 @@ const Network = {
      */
     sendMotorCommand(speedA, speedB, brakeA = false, brakeB = false) {
         if (!state.isConnected) {
-            UI.showToast('Not connected to server', 'error');
+            UI.showToast('未连接到服务器', 'error');
             return;
         }
 
@@ -667,7 +667,7 @@ const UI = {
             const brakeB = state.motor.B.action === 'brake';
 
             Network.sendMotorCommand(speedA, speedB, brakeA, brakeB);
-            UI.showToast('Commands Sent', 'success');
+            UI.showToast('命令已发送', 'success');
         });
 
         // Settings Modal
@@ -715,15 +715,15 @@ const UI = {
         switch (status) {
             case 'connected':
                 badge.classList.add('connected');
-                text.textContent = 'Connected';
+                text.textContent = '已连接';
                 break;
             case 'connecting':
                 badge.classList.add('disconnected'); // Use disconnected style for connecting
-                text.textContent = 'Connecting...';
+                text.textContent = '正在连接...';
                 break;
             default:
                 badge.classList.add('disconnected');
-                text.textContent = 'Disconnected';
+                text.textContent = '已断开';
         }
     },
 
@@ -739,12 +739,12 @@ const UI = {
             devControls.classList.add('hidden');
             visitorControls.classList.remove('hidden');
             hudElements.forEach(el => el.classList.add('hidden'));
-            UI.showToast('Visitor Mode Active', 'info');
+            UI.showToast('访客模式已激活', 'info');
         } else {
             devControls.classList.remove('hidden');
             visitorControls.classList.add('hidden');
             hudElements.forEach(el => el.classList.remove('hidden'));
-            UI.showToast('Developer Mode Active', 'info');
+            UI.showToast('开发模式已激活', 'info');
         }
     },
 
@@ -821,7 +821,7 @@ const UI = {
 
     updateMotorStatus() {
         if (!state.motorStatus) return;
-        const stateNames = ['STOP', 'FWD', 'REV', 'BRAKE'];
+        const stateNames = ['停止', '前进', '后退', '制动'];
         // Could update UI elements if added to HTML
         console.log(`[MotorStatus] A=${state.motorStatus.speedA}(${stateNames[state.motorStatus.stateA]}), ` +
             `B=${state.motorStatus.speedB}(${stateNames[state.motorStatus.stateB]})`);
@@ -849,8 +849,8 @@ const UI = {
         if (!state.isVisitorMode) {
             const btn = document.getElementById('send-cmd');
             const originalText = btn.innerHTML;
-            if (msg === 'Commands Sent') {
-                btn.innerHTML = '<span>Sent ✓</span>';
+            if (msg === '命令已发送') {
+                btn.innerHTML = '<span>已发送 ✓</span>';
                 setTimeout(() => { btn.innerHTML = originalText; }, 2000);
             }
         }

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LiDAR Control System</title>
+    <title>LiDAR 控制系统</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
@@ -20,15 +20,15 @@
 
             <!-- HUD Overlays -->
             <div class="hud-overlay hud-top-left">
-                <div><span class="hud-value" id="fps-display">0 FPS</span> <span class="hud-label">RENDER</span></div>
+                <div><span class="hud-value" id="fps-display">0 FPS</span> <span class="hud-label">渲染</span></div>
             </div>
 
             <div class="hud-overlay hud-top-right">
-                <div><span class="hud-value" id="point-count">0</span> <span class="hud-label">POINTS</span></div>
+                <div><span class="hud-value" id="point-count">0</span> <span class="hud-label">点数</span></div>
             </div>
 
             <div class="hud-overlay hud-bottom-left">
-                <div><span class="hud-label">PACKET ID:</span> <span class="hud-value" id="packet-id">0</span></div>
+                <div><span class="hud-label">数据包 ID:</span> <span class="hud-value" id="packet-id">0</span></div>
             </div>
         </main>
 
@@ -38,19 +38,19 @@
                 <div class="brand">
                     <span class="material-symbols-outlined brand-icon">radar</span>
                     <div class="brand-text">
-                        <h1>LiDAR Control</h1>
-                        <p>System v2.0</p>
+                        <h1>LiDAR 控制</h1>
+                        <p>系统 v2.0</p>
                     </div>
                 </div>
                 <div class="header-actions">
                     <div class="mode-toggle">
-                        <span class="mode-label">Visitor Mode</span>
+                        <span class="mode-label">访客模式</span>
                         <label class="switch">
                             <input type="checkbox" id="mode-toggle-checkbox">
                             <span class="slider round"></span>
                         </label>
                     </div>
-                    <button class="settings-btn icon-btn" id="btn-settings" title="Settings">
+                    <button class="settings-btn icon-btn" id="btn-settings" title="设置">
                         <span class="material-symbols-outlined">settings</span>
                     </button>
                 </div>
@@ -61,28 +61,28 @@
                 <!-- Status Card -->
                 <div class="control-card">
                     <div class="card-header">
-                        <span class="card-title">System Status</span>
+                        <span class="card-title">系统状态</span>
                         <div id="status-badge" class="status-badge disconnected">
                             <span class="status-dot"></span>
-                            <span id="status-text">Disconnected</span>
+                            <span id="status-text">已断开</span>
                         </div>
                     </div>
                     <div class="data-grid">
                         <div class="data-item">
-                            <span class="data-label">CPU</span>
+                            <span class="data-label">CPU 温度</span>
                             <span class="data-value cpu-temp">--</span>
                         </div>
                         <div class="data-item">
-                            <span class="data-label">HEAP</span>
+                            <span class="data-label">堆内存</span>
                             <span class="data-value heap">--</span>
                         </div>
                         <div class="data-item">
-                            <span class="data-label">UPTIME</span>
+                            <span class="data-label">运行时间</span>
                             <span class="data-value uptime">--</span>
                         </div>
                         <div class="data-item">
-                            <span class="data-label">FORMAT</span>
-                            <span class="data-value">Binary</span>
+                            <span class="data-label">数据格式</span>
+                            <span class="data-value">二进制</span>
                         </div>
                     </div>
                 </div>
@@ -90,24 +90,24 @@
                 <!-- Motor Control Card -->
                 <div class="control-card">
                     <div class="card-header">
-                        <span class="card-title">Motor Control</span>
+                        <span class="card-title">电机控制</span>
                     </div>
 
                     <!-- Motor A -->
                     <div class="motor-group">
                         <div class="motor-header">
-                            <span class="motor-name">Motor A</span>
-                            <span class="motor-tag">PORT</span>
+                            <span class="motor-name">电机 A</span>
+                            <span class="motor-tag">左侧</span>
                         </div>
                         <div class="btn-grid">
-                            <button class="btn-control" data-motor="A" data-action="forward">FWD</button>
-                            <button class="btn-control" data-motor="A" data-action="backward">BWD</button>
-                            <button class="btn-control stop-btn active" data-motor="A" data-action="stop">STOP</button>
-                            <button class="btn-control" data-motor="A" data-action="brake">BRAKE</button>
+                            <button class="btn-control" data-motor="A" data-action="forward">前进</button>
+                            <button class="btn-control" data-motor="A" data-action="backward">后退</button>
+                            <button class="btn-control stop-btn active" data-motor="A" data-action="stop">停止</button>
+                            <button class="btn-control" data-motor="A" data-action="brake">制动</button>
                         </div>
                         <div class="slider-container">
                             <div class="slider-header">
-                                <span>SPEED</span>
+                                <span>速度</span>
                                 <span class="slider-value" id="val-A">512</span>
                             </div>
                             <input type="range" id="speed-A" min="0" max="1023" value="512">
@@ -119,18 +119,18 @@
                     <!-- Motor B -->
                     <div class="motor-group">
                         <div class="motor-header">
-                            <span class="motor-name">Motor B</span>
-                            <span class="motor-tag">STBD</span>
+                            <span class="motor-name">电机 B</span>
+                            <span class="motor-tag">右侧</span>
                         </div>
                         <div class="btn-grid">
-                            <button class="btn-control" data-motor="B" data-action="forward">FWD</button>
-                            <button class="btn-control" data-motor="B" data-action="backward">BWD</button>
-                            <button class="btn-control stop-btn active" data-motor="B" data-action="stop">STOP</button>
-                            <button class="btn-control" data-motor="B" data-action="brake">BRAKE</button>
+                            <button class="btn-control" data-motor="B" data-action="forward">前进</button>
+                            <button class="btn-control" data-motor="B" data-action="backward">后退</button>
+                            <button class="btn-control stop-btn active" data-motor="B" data-action="stop">停止</button>
+                            <button class="btn-control" data-motor="B" data-action="brake">制动</button>
                         </div>
                         <div class="slider-container">
                             <div class="slider-header">
-                                <span>SPEED</span>
+                                <span>速度</span>
                                 <span class="slider-value" id="val-B">512</span>
                             </div>
                             <input type="range" id="speed-B" min="0" max="1023" value="512">
@@ -139,7 +139,7 @@
 
                     <button class="action-btn filled-btn" id="send-cmd">
                         <span class="material-symbols-outlined">send</span>
-                        <span>Send Commands</span>
+                        <span>发送命令</span>
                     </button>
                 </div>
             </div>
@@ -148,9 +148,9 @@
             <div class="sidebar-content hidden" id="visitor-controls">
                 <div class="control-card">
                     <div class="card-header">
-                        <span class="card-title">Driver Control</span>
+                        <span class="card-title">驾驶控制</span>
                     </div>
-                    <p class="card-desc">Use the joystick below or WASD keys to drive the robot.</p>
+                    <p class="card-desc">使用下方的摇杆或 WASD 键来控制机器人。</p>
 
                     <div class="joystick-wrapper">
                         <div id="joystick-container">
@@ -171,27 +171,27 @@
                     </div>
 
                     <div class="speed-selector">
-                        <label>Cruise Speed</label>
+                        <label>巡航速度</label>
                         <div class="speed-presets">
-                            <button class="speed-chip active" data-speed="400">Slow</button>
-                            <button class="speed-chip" data-speed="700">Med</button>
-                            <button class="speed-chip" data-speed="1023">Fast</button>
+                            <button class="speed-chip active" data-speed="400">慢速</button>
+                            <button class="speed-chip" data-speed="700">中速</button>
+                            <button class="speed-chip" data-speed="1023">快速</button>
                         </div>
                     </div>
                 </div>
 
                 <div class="control-card">
                     <div class="card-header">
-                        <span class="card-title">Live View</span>
+                        <span class="card-title">实时视图</span>
                     </div>
                     <div class="mini-status">
                         <div class="mini-stat">
                             <span class="material-symbols-outlined">distance</span>
-                            <span id="visitor-points">0</span> pts
+                            <span id="visitor-points">0</span> 点
                         </div>
                         <div class="mini-stat">
                             <span class="material-symbols-outlined">speed</span>
-                            <span id="visitor-fps">0</span> fps
+                            <span id="visitor-fps">0</span> 帧/秒
                         </div>
                     </div>
                 </div>
@@ -203,18 +203,18 @@
     <div class="modal-overlay" id="modal-overlay">
         <div class="modal">
             <div class="modal-header">
-                <h2 class="modal-title">Settings</h2>
+                <h2 class="modal-title">设置</h2>
                 <button class="close-modal" id="btn-close-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label class="form-label">WebSocket URL</label>
+                    <label class="form-label">WebSocket 地址</label>
                     <input type="text" class="form-input" id="input-ws-url" placeholder="ws://localhost:81">
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn-secondary" id="btn-cancel-settings">Cancel</button>
-                <button class="btn-primary" id="btn-save-settings">Save Changes</button>
+                <button class="btn-secondary" id="btn-cancel-settings">取消</button>
+                <button class="btn-primary" id="btn-save-settings">保存更改</button>
             </div>
         </div>
     </div>
@@ -224,55 +224,50 @@
         <div class="onboarding-card" id="onboarding-card">
             <div class="onboarding-content" id="step-1">
                 <div class="onboarding-icon">🤖</div>
-                <h2>Hi there, Explorer!</h2>
-                <p>Welcome to your robot control center! Want to learn how to drive this cool robot? Let's go!</p>
-                <button class="onboarding-btn next-step" data-next="step-2">Let's Play!</button>
-                <button class="onboarding-link skip-tour">I already know how</button>
+                <h2>你好，探险家！</h2>
+                <p>欢迎来到机器人控制中心！想学习如何驾驶这个酷炫的机器人吗？让我们开始吧！</p>
+                <button class="onboarding-btn next-step" data-next="step-2">开始玩吧！</button>
+                <button class="onboarding-link skip-tour">我已经知道了</button>
             </div>
 
             <div class="onboarding-content hidden" id="step-2">
                 <div class="onboarding-icon" style="color: var(--md-sys-color-primary);">radar</div>
-                <h2>How Robots "See"</h2>
-                <p>The robot uses a laser to draw dots in the dark! These dots show us where walls and toys are. It's
-                    like having special laser-eyes!</p>
+                <h2>机器人如何“看”</h2>
+                <p>机器人使用激光在黑暗中绘制点！这些点告诉我们墙壁和玩具在哪里。就像拥有特殊的激光眼！</p>
                 <div class="tour-highlight-ref" data-target=".canvas-area"></div>
-                <button class="onboarding-btn next-step" data-next="step-3">Next: Looking Around</button>
+                <button class="onboarding-btn next-step" data-next="step-3">下一步：观察四周</button>
             </div>
 
             <div class="onboarding-content hidden" id="step-3">
                 <div class="onboarding-icon">👀</div>
-                <h2>Look Around</h2>
-                <p>Use your mouse to <b>drag</b> and spin the map! You can also use your scroll wheel to <b>zoom in and
-                        out</b>. Try to see the robot from different sides!</p>
+                <h2>观察四周</h2>
+                <p>使用鼠标拖动并旋转地图！你也可以使用滚轮放大或缩小。尝试从不同角度观察机器人！</p>
                 <div class="tour-highlight-ref" data-target=".canvas-area"></div>
-                <button class="onboarding-btn next-step" data-next="step-4">Next: Steering</button>
+                <button class="onboarding-btn next-step" data-next="step-4">下一步：转向</button>
             </div>
 
             <div class="onboarding-content hidden" id="step-4">
                 <div class="onboarding-icon">🎮</div>
-                <h2>The Steering Wheel</h2>
-                <p>Use these buttons to drive! 🔼 is Forward, 🔽 is Backward. ◀️ and ▶️ make the robot spin! You can
-                    also use the <b>W-A-S-D</b> keys on your keyboard!</p>
+                <h2>方向盘</h2>
+                <p>使用这些按钮来驾驶！🔼 是前进，🔽 是后退。◀️ 和 ▶️ 让机器人旋转！你也可以使用键盘上的 W-A-S-D 键！</p>
                 <div class="tour-highlight-ref" data-target=".dpad"></div>
-                <button class="onboarding-btn next-step" data-next="step-5">Next: Cruising Speed</button>
+                <button class="onboarding-btn next-step" data-next="step-5">下一步：巡航速度</button>
             </div>
 
             <div class="onboarding-content hidden" id="step-5">
                 <div class="onboarding-icon">🏎️</div>
-                <h2>Pick Your Speed</h2>
-                <p>Want to go slow or fast? Click <b>Slow</b> for a careful crawl, or <b>Fast</b> if you have a lot of
-                    room. <b>Med</b> is just right for most fun!</p>
+                <h2>选择你的速度</h2>
+                <p>想走慢点还是快点？点击“慢速”进行小心爬行，或者如果你有足够的空间，选择“快速”。“中速”最适合大多数乐趣！</p>
                 <div class="tour-highlight-ref" data-target=".speed-presets"></div>
-                <button class="onboarding-btn next-step" data-next="step-6">Next: Be Safe!</button>
+                <button class="onboarding-btn next-step" data-next="step-6">下一步：安全第一！</button>
             </div>
 
             <div class="onboarding-content hidden" id="step-6">
                 <div class="onboarding-icon" style="color: var(--md-sys-color-error);">stop_circle</div>
-                <h2>The Emergency Brake</h2>
-                <p>Oops! Might hit something? Click this big <b>RED STOP</b> button or hit the <b>Spacebar</b> on your
-                    keyboard. It's the robot's best friend!</p>
+                <h2>紧急制动</h2>
+                <p>哎呀！可能会撞到东西？点击这个巨大的红色停止按钮，或者按下键盘上的空格键。它是机器人最好的朋友！</p>
                 <div class="tour-highlight-ref" data-target=".dpad-btn.stop"></div>
-                <button class="onboarding-btn next-step" id="finish-tour" data-next="done">I'm Ready! Let's Go!</button>
+                <button class="onboarding-btn next-step" id="finish-tour" data-next="done">我准备好了！出发！</button>
             </div>
         </div>
     </div>
