@@ -278,17 +278,17 @@ void setup() {
   // Serial.println("  (Hybrid Architecture)");
   // Serial.println("========================================\n");
 
-  // 初始化电机
+  // // 初始化电机
   motors.begin();
-  motors.stopA();
-  motors.stopB();
-  // Serial.println("[Motor] Initialized");
-  // Serial.println("[TEST] Force Motor A RUN 1000 for 1s...");
-  motors.setSpeedA(1000); // 接近全速
-  motors.setSpeedB(1000);
-  delay(1000); // 堵塞式延时，观察电机动不动
-  motors.stopA();
-  motors.stopB();
+  // motors.stopA();
+  // motors.stopB();
+  // // Serial.println("[Motor] Initialized");
+  // // Serial.println("[TEST] Force Motor A RUN 1000 for 1s...");
+  // motors.setSpeedA(1000); // 接近全速
+  // motors.setSpeedB(1000);
+  // delay(1000); // 堵塞式延时，观察电机动不动
+  // motors.stopA();
+  // motors.stopB();
   // Serial.println("[TEST] Motor STOP");
 
   // 初始化 LiDAR 串口 (关键：先设置缓冲区！)
@@ -297,7 +297,7 @@ void setup() {
   // Serial.printf("[UART] LiDAR ready (baud=%d, RX=%d, TX=%d, buf=%dKB)\n",
   //               LIDAR_BAUD_RATE, LIDAR_RX_PIN, LIDAR_TX_PIN,
   //               UART_RX_BUFFER_SIZE / 1024);
-
+  delay(30000);
   // 启动 WiFi AP
   WiFi.mode(WIFI_AP);
   WiFi.softAP(AP_SSID, AP_PASS);
@@ -337,7 +337,7 @@ void loop() {
 
   // ========== 低优先级: 状态上报 (1Hz) ==========
   uint32_t now = millis();
-  if (now - last_status_time >= 1000) {
+  if (now - last_status_time >= 1500) {
     send_status();
     last_status_time = now;
   }
