@@ -968,3 +968,100 @@ input:checked+.slider:before {
     font-weight: 700;
     color: var(--md-sys-color-on-surface);
 }
+
+/* ==================== Split View & Camera ==================== */
+.canvas-area {
+    display: flex;
+    overflow: hidden;
+}
+
+#split-container {
+    display: flex;
+    flex-direction: row;
+    /* Vertical divider splitting into Left/Right */
+    width: 100%;
+    height: 100%;
+    gap: 2px;
+    background-color: var(--md-sys-color-outline-variant);
+    /* Divider line */
+}
+
+#canvas-wrapper {
+    position: relative;
+    /* CRITICAL for absolute children (HUDs) */
+    flex: 3;
+    /* More space for Point Cloud */
+    height: 100%;
+    background-color: #000;
+    overflow: hidden;
+}
+
+#camera-wrapper {
+    position: relative;
+    /* CRITICAL for absolute children */
+    flex: 2;
+    /* Space for Camera Feed */
+    height: 100%;
+    background-color: #111;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.camera-header {
+    height: 48px;
+    background-color: var(--md-sys-color-surface-container-high);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    font: var(--md-sys-typescale-title-medium);
+    color: var(--md-sys-color-on-surface);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.camera-header .material-symbols-outlined {
+    color: var(--md-sys-color-primary);
+}
+
+.camera-content {
+    flex: 1;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+}
+
+#camera-feed {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    /* Scale while preserving aspect ratio */
+    display: none;
+    transform: scaleY(-1);
+    /* Flip vertically */
+}
+
+#camera-feed.active {
+    display: block;
+}
+
+.camera-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 0.6;
+}
+
+.camera-placeholder span {
+    font-size: 48px;
+}
+
+.hud-bottom-right {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+}

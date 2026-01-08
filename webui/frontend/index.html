@@ -16,19 +16,45 @@
     <div class="app-container">
         <!-- 3D Visualization Area -->
         <main class="canvas-area">
-            <div id="canvas-container"></div>
+            <!-- Split View Container -->
+            <div id="split-container">
+                <!-- 3D Point Cloud -->
+                <div id="canvas-wrapper">
+                    <div id="canvas-container"></div>
 
-            <!-- HUD Overlays -->
-            <div class="hud-overlay hud-top-left">
-                <div><span class="hud-value" id="fps-display">0 FPS</span> <span class="hud-label">渲染</span></div>
-            </div>
+                    <!-- HUD Overlays for Point Cloud -->
+                    <div class="hud-overlay hud-top-left">
+                        <div><span class="hud-value" id="fps-display">0 FPS</span> <span class="hud-label">渲染</span>
+                        </div>
+                    </div>
 
-            <div class="hud-overlay hud-top-right">
-                <div><span class="hud-value" id="point-count">0</span> <span class="hud-label">点数</span></div>
-            </div>
+                    <div class="hud-overlay hud-top-right">
+                        <div><span class="hud-value" id="point-count">0</span> <span class="hud-label">点数</span></div>
+                    </div>
 
-            <div class="hud-overlay hud-bottom-left">
-                <div><span class="hud-label">数据包 ID:</span> <span class="hud-value" id="packet-id">0</span></div>
+                    <div class="hud-overlay hud-bottom-left">
+                        <div><span class="hud-label">数据包 ID:</span> <span class="hud-value" id="packet-id">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera View -->
+                <div id="camera-wrapper">
+                    <div class="camera-header">
+                        <span class="material-symbols-outlined">videocam</span>
+                        <span>OpenMV 视角</span>
+                    </div>
+                    <div class="camera-content">
+                        <img id="camera-feed" src="" alt="等待视频流..." />
+                        <div class="camera-placeholder">
+                            <span class="material-symbols-outlined">no_photography</span>
+                            <p>等待连接...</p>
+                        </div>
+                    </div>
+                    <div class="hud-overlay hud-bottom-right">
+                        <div><span class="hud-label">FPS:</span> <span class="hud-value" id="cam-fps">0</span></div>
+                    </div>
+                </div>
             </div>
         </main>
 

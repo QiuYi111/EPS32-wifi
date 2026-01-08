@@ -17,7 +17,9 @@ const PacketType = {
     LIDAR_RAW: 1,
     MOTOR_STATUS: 2,
     SYSTEM_STATUS: 3,
-    MOTOR_CONTROL: 4
+    MOTOR_CONTROL: 4,
+    CAM_JPEG: 5,
+    MIXED_DATA: 6
 };
 
 // === MAVLink Parser (Unitree LiDAR) ===
@@ -364,6 +366,7 @@ const Visualizer = {
 
     onResize() {
         const container = document.getElementById('canvas-container');
+        if (!container) return;
         this.camera.aspect = container.clientWidth / container.clientHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(container.clientWidth, container.clientHeight);
@@ -427,6 +430,37 @@ const Network = {
         }
     },
 
+    _processLidarPoints(points) {
+        if (points.length > 0) {
+            // Accumulate points for display
+            if (!state.pointBuffer) state.pointBuffer = [];
+            state.pointBuffer.push(...points);
+
+            // Keep max 10000 recent points for performance
+            if (state.pointBuffer.length > 10000) {
+                state.pointBuffer = state.pointBuffer.slice(-10000);
+            }
+
+            // Update visualizer
+            const positions = new Float32Array(state.pointBuffer.length * 3);
+            const colors = new Float32Array(state.pointBuffer.length * 3);
+
+            state.pointBuffer.forEach((p, i) => {
+                positions[i * 3] = p.x;
+                positions[i * 3 + 1] = p.z;  // Swap Y/Z for typical 3D view
+                positions[i * 3 + 2] = p.y;
+
+                // Color based on intensity (blue -> cyan -> white)
+                colors[i * 3] = p.intensity * 0.5;
+                colors[i * 3 + 1] = p.intensity * 0.8;
+                colors[i * 3 + 2] = 0.5 + p.intensity * 0.5;
+            });
+
+            Visualizer.updatePoints(positions, colors, state.pointBuffer.length);
+            state.pointCount = state.pointBuffer.length;
+        }
+    },
+
     parseData(buffer) {
         const view = new DataView(buffer);
 
@@ -449,36 +483,7 @@ const Network = {
                 // Parse MAVLink and extract points
                 const payload = new Uint8Array(buffer, CONFIG.headerSize, payloadLength);
                 const points = mavlinkParser.feed(payload);
-
-                if (points.length > 0) {
-                    // Accumulate points for display
-                    if (!state.pointBuffer) state.pointBuffer = [];
-                    state.pointBuffer.push(...points);
-
-                    // Keep max 10000 recent points for performance
-                    if (state.pointBuffer.length > 10000) {
-                        state.pointBuffer = state.pointBuffer.slice(-10000);
-                    }
-
-                    // Update visualizer
-                    const positions = new Float32Array(state.pointBuffer.length * 3);
-                    const colors = new Float32Array(state.pointBuffer.length * 3);
-
-                    state.pointBuffer.forEach((p, i) => {
-                        positions[i * 3] = p.x;
-                        positions[i * 3 + 1] = p.z;  // Swap Y/Z for typical 3D view
-                        positions[i * 3 + 2] = p.y;
-
-                        // Color based on intensity (blue -> cyan -> white)
-                        colors[i * 3] = p.intensity * 0.5;
-                        colors[i * 3 + 1] = p.intensity * 0.8;
-                        colors[i * 3 + 2] = 0.5 + p.intensity * 0.5;
-                    });
-
-                    Visualizer.updatePoints(positions, colors, state.pointBuffer.length);
-                    state.pointCount = state.pointBuffer.length;
-                }
-
+                this._processLidarPoints(points);
                 state.lidarBytes = (state.lidarBytes || 0) + payloadLength;
                 break;
 
@@ -505,6 +510,62 @@ const Network = {
                         wsClients: view.getUint8(26)
                     };
                     UI.updateSystemStatus();
+                }
+                break;
+
+            case PacketType.CAM_JPEG:
+                const blob = new Blob([view.buffer.slice(CONFIG.headerSize)], { type: 'image/jpeg' });
+                const url = URL.createObjectURL(blob);
+                const img = document.getElementById('camera-feed');
+                // Revoke old URL to avoid memory leak
+                if (img.src && img.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(img.src);
+                }
+                img.src = url;
+                if (!img.classList.contains('active')) {
+                    img.classList.add('active');
+                    // Hide placeholder
+                    const ph = document.querySelector('.camera-placeholder');
+                    if (ph) ph.style.display = 'none';
+                }
+
+                // Update Cam FPS
+                UI.updateCamFps();
+                break;
+
+            case PacketType.MIXED_DATA:
+                // Format: [CamLen 4] [CamData] [LidarData...]
+                if (view.byteLength < CONFIG.headerSize + 4) return;
+
+                const camLen = view.getUint32(CONFIG.headerSize, true); // Little Endian
+                const camOffset = CONFIG.headerSize + 4;
+
+                // 1. Process Camera
+                if (camLen > 0 && view.byteLength >= camOffset + camLen) {
+                    const blob = new Blob([view.buffer.slice(camOffset, camOffset + camLen)], { type: 'image/jpeg' });
+                    const url = URL.createObjectURL(blob);
+                    const img = document.getElementById('camera-feed');
+                    if (img.dataset.lastUrl) URL.revokeObjectURL(img.dataset.lastUrl);
+                    img.src = url;
+                    img.dataset.lastUrl = url;
+                    if (!img.classList.contains('active')) {
+                        img.classList.add('active');
+                        const ph = document.querySelector('.camera-placeholder');
+                        if (ph) ph.style.display = 'none';
+                    }
+                    UI.updateCamFps();
+                }
+
+                // 2. Process LiDAR (Rest of the packet)
+                const lidarOffset = camOffset + camLen;
+                if (view.byteLength > lidarOffset) {
+                    // Extract LiDAR payload
+                    const lidarData = new Uint8Array(buffer, lidarOffset);
+                    // Feed to MAVLink parser
+                    // Note: We need to feed raw bytes to mavlinkParser which expects Uint8Array
+                    const points = mavlinkParser.feed(lidarData);
+                    this._processLidarPoints(points);
+                    state.lidarBytes = (state.lidarBytes || 0) + lidarData.length;
                 }
                 break;
         }
@@ -553,13 +614,15 @@ const Network = {
 // === UI Manager ===
 const UI = {
     fpsCounter: 0,
+    camFpsCounter: 0,
     lastFpsTime: Date.now(),
+    lastCamFpsTime: Date.now(),
 
     init() {
         this.bindEvents();
         this.updateConnectionStatus('disconnected');
 
-        // FPS Loop
+        // FPS Loop (Render)
         setInterval(() => {
             const now = Date.now();
             if (now - this.lastFpsTime >= 1000) {
@@ -568,8 +631,23 @@ const UI = {
                 this.lastFpsTime = now;
                 document.getElementById('fps-display').textContent = `${state.fps} FPS`;
             }
-            this.fpsCounter++; // Increment roughly per frame render (simulated here, ideally in animate loop)
+            this.fpsCounter++;
         }, 1000 / 60);
+
+        // Cam FPS reset logic (check every 1s)
+        setInterval(() => {
+            const now = Date.now();
+            if (now - this.lastCamFpsTime >= 1000) {
+                const fps = this.camFpsCounter;
+                document.getElementById('cam-fps').textContent = fps;
+                this.camFpsCounter = 0;
+                this.lastCamFpsTime = now;
+            }
+        }, 1000);
+    },
+
+    updateCamFps() {
+        this.camFpsCounter++;
     },
 
     bindEvents() {
