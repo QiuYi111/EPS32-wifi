@@ -13,6 +13,7 @@
  *   - 电机控制仍由 ESP32 处理
  */
 
+#include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
 #include <WebSocketsServer.h>
 #include <WiFi.h>
@@ -34,6 +35,15 @@
 #define LIDAR_RX_PIN 16
 #define LIDAR_TX_PIN 15
 #define LIDAR_BAUD_RATE 2000000
+
+// UART 配置 (OpenMV)
+#define OPENMV_RX_PIN 18
+#define OPENMV_TX_PIN 17
+#define OPENMV_BAUD_RATE 921600
+
+// RGB LED (NeoPixel)
+#define RGB_LED_PIN 48
+#define RGB_LED_COUNT 1
 
 // 串口缓冲区大小 (关键参数!)
 #define UART_RX_BUFFER_SIZE 65536 // 64KB
@@ -61,6 +71,8 @@ enum PacketType : uint8_t {
   PKT_MOTOR_STATUS = 2,  // 电机状态
   PKT_SYSTEM_STATUS = 3, // 系统状态
   PKT_MOTOR_CONTROL = 4, // 电机控制命令 (来自客户端)
+  PKT_CAM_JPEG = 5,      // OpenMV JPEG 图片
+  PKT_MIXED_DATA = 6,    // 混合数据: [CamLen 4B] + [CamData] + [LidarData...]
 };
 
 // 通用包头 (11 bytes)
@@ -100,6 +112,11 @@ struct __attribute__((packed)) SystemStatusData {
 
 // 串口
 HardwareSerial &lidar_serial = Serial1;
+HardwareSerial &cam_serial = Serial2;
+
+// LED
+Adafruit_NeoPixel status_led(RGB_LED_COUNT, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
+uint32_t led_off_time = 0;
 
 // WebSocket 服务器
 WebSocketsServer ws_server(WS_PORT);
@@ -112,7 +129,12 @@ MotorStatusData motor_status = {0};
 SystemStatusData system_status = {0};
 
 // 透传缓冲区 (静态分配，避免碎片)
-static uint8_t forward_buffer[FORWARD_BUFFER_SIZE];
+// static uint8_t forward_buffer[FORWARD_BUFFER_SIZE]; // 废弃，改用 staging
+
+// LiDAR 暂存缓冲区 (32KB, 足够容纳 ~150ms @ 2Mbps 的数据)
+#define LIDAR_STAGING_SIZE 32768
+static uint8_t lidar_staging_buffer[LIDAR_STAGING_SIZE];
+static size_t lidar_staging_len = 0;
 
 // WebSocket 发送缓冲区
 static uint8_t ws_send_buffer[sizeof(PacketHeader) + 256];
@@ -150,17 +172,87 @@ void ws_send_packet(PacketType type, const void *data, uint16_t length) {
 }
 
 /**
- * @brief 透传 LiDAR 原始数据 (带包头)
+ * @brief 暂存 LiDAR 数据
  */
-void forward_lidar_data(const uint8_t *data, size_t length) {
+void buffer_lidar_data(const uint8_t *data, size_t length) {
+  if (length == 0)
+    return;
+
+  // 如果缓冲区不够，先强制发送已有的(或者丢弃旧的?
+  // 为了简单，丢弃旧的并报错，因为理论上不会满)
+  if (lidar_staging_len + length > LIDAR_STAGING_SIZE) {
+    Serial.println("[LiDAR] Buffer overflow! Dropping old data.");
+    lidar_staging_len = 0; // 简单复位，防止死锁
+  }
+
+  memcpy(lidar_staging_buffer + lidar_staging_len, data, length);
+  lidar_staging_len += length;
+}
+
+/**
+ * @brief 发送混合数据包 (Cam + Lidar)
+ *
+ * 格式:
+ * Header (11)
+ * CamSize (4, LE)
+ * CamData (N)
+ * LidarData (M)
+ */
+void flush_mixed_data(const uint8_t *cam_data, size_t cam_len) {
+  if (!has_ws_client) {
+    lidar_staging_len = 0; // 没有客户端就清空
+    return;
+  }
+
+  size_t total_payload = 4 + cam_len + lidar_staging_len;
+  size_t total_packet = sizeof(PacketHeader) + total_payload;
+
+  uint8_t *buffer = (uint8_t *)malloc(total_packet);
+  if (!buffer) {
+    Serial.println("[Mix] Malloc failed");
+    return;
+  }
+
+  PacketHeader *hdr = (PacketHeader *)buffer;
+  hdr->magic = PACKET_MAGIC;
+  hdr->timestamp = millis();
+  hdr->type = PKT_MIXED_DATA;
+  hdr->length = total_payload; // Payload 长度
+
+  uint8_t *ptr = buffer + sizeof(PacketHeader);
+
+  // 1. Cam Size (4 bytes)
+  uint32_t c_len = (uint32_t)cam_len;
+  memcpy(ptr, &c_len, 4);
+  ptr += 4;
+
+  // 2. Cam Data
+  if (cam_len > 0 && cam_data) {
+    memcpy(ptr, cam_data, cam_len);
+    ptr += cam_len;
+  }
+
+  // 3. Lidar Data
+  if (lidar_staging_len > 0) {
+    memcpy(ptr, lidar_staging_buffer, lidar_staging_len);
+  }
+
+  // 发送
+  ws_server.broadcastBIN(buffer, total_packet);
+  free(buffer);
+
+  // 清空 LiDAR 缓冲区
+  lidar_staging_len = 0;
+}
+
+/**
+ * @brief 透传 Camera JPEG 数据 (带包头)
+ */
+void forward_cam_data(const uint8_t *data, size_t length) {
   if (!has_ws_client || length == 0)
     return;
 
-  // 对于 LiDAR 数据，添加简单包头后发送
-  // 包头: magic(4) + timestamp(4) + type(1) + length(2) = 11 bytes
   size_t total = sizeof(PacketHeader) + length;
-
-  // 使用动态分配大缓冲区
   uint8_t *buffer = (uint8_t *)malloc(total);
   if (!buffer)
     return;
@@ -168,7 +260,7 @@ void forward_lidar_data(const uint8_t *data, size_t length) {
   PacketHeader *hdr = (PacketHeader *)buffer;
   hdr->magic = PACKET_MAGIC;
   hdr->timestamp = millis();
-  hdr->type = PKT_LIDAR_RAW;
+  hdr->type = PKT_CAM_JPEG;
   hdr->length = length;
 
   memcpy(buffer + sizeof(PacketHeader), data, length);
@@ -279,9 +371,7 @@ void setup() {
   // Serial.println("========================================\n");
 
   // // 初始化电机
-  motors.begin();
-  // motors.stopA();
-  // motors.stopB();
+
   // // Serial.println("[Motor] Initialized");
   // // Serial.println("[TEST] Force Motor A RUN 1000 for 1s...");
   // motors.setSpeedA(1000); // 接近全速
@@ -294,14 +384,29 @@ void setup() {
   // 初始化 LiDAR 串口 (关键：先设置缓冲区！)
   lidar_serial.setRxBufferSize(UART_RX_BUFFER_SIZE);
   lidar_serial.begin(LIDAR_BAUD_RATE, SERIAL_8N1, LIDAR_RX_PIN, LIDAR_TX_PIN);
+  status_led.begin(); // Make sure to begin LED before using it
+  status_led.setBrightness(50);
+  status_led.setPixelColor(0, status_led.Color(0, 255, 0));
+  status_led.show();
+
+  // 初始化 OpenMV 串口
+  cam_serial.setRxBufferSize(UART_RX_BUFFER_SIZE); // 同样给大缓存
+  cam_serial.begin(OPENMV_BAUD_RATE, SERIAL_8N1, OPENMV_RX_PIN, OPENMV_TX_PIN);
+
   // Serial.printf("[UART] LiDAR ready (baud=%d, RX=%d, TX=%d, buf=%dKB)\n",
   //               LIDAR_BAUD_RATE, LIDAR_RX_PIN, LIDAR_TX_PIN,
   //               UART_RX_BUFFER_SIZE / 1024);
+
   delay(30000);
+  status_led.setPixelColor(0, status_led.Color(0, 255, 0));
+  status_led.show();
   // 启动 WiFi AP
   WiFi.mode(WIFI_AP);
   WiFi.softAP(AP_SSID, AP_PASS);
   delay(100);
+  motors.begin();
+  motors.stopA();
+  motors.stopB();
   // Serial.printf("[WiFi] AP Started - SSID: %s\n", AP_SSID);
   // Serial.printf("[WiFi] AP IP: %s\n", WiFi.softAPIP().toString().c_str());
 
@@ -315,40 +420,98 @@ void setup() {
 }
 
 void loop() {
-  // ========== 最高优先级: WebSocket 事件 (电机命令) ==========
-  // 电机命令是低频关键指令，必须优先处理！
+  // ========== 1. WebSocket 事件 (电机命令) ==========
   ws_server.loop();
 
-  // ========== 高优先级: 透传 LiDAR 数据 ==========
-  int uart_available = lidar_serial.available();
-  if (uart_available > 0) {
-    // 限制单次读取量
-    int read_len = min(uart_available, (int)sizeof(forward_buffer));
-    lidar_serial.readBytes(forward_buffer, read_len);
+  // ========== 2. 优化：交替处理或优先相机 ==========
+  // 之前的逻辑是优先处理 LiDAR，直到 LiDAR 没数据。
+  // 由于 LiDAR 数据量大且持续 (2Mbps)，这可能导致相机数据处理被饥饿。
 
-    // 统计
-    total_lidar_bytes += read_len;
+  // 检查相机 (优先检查，确保不丢头)
+  static enum { STATE_WaitSize, STATE_ReadingBody } cam_state = STATE_WaitSize;
+  static uint32_t cam_body_len = 0;
+  static uint32_t cam_read_count = 0;
+  static uint8_t *cam_img_buffer = NULL;
 
-    // 透传到 WebSocket
-    if (has_ws_client) {
-      forward_lidar_data(forward_buffer, read_len);
+  // 每次 Loop 最多处理一定量的相机数据，避免阻塞太久
+  // 但是对于图片，我们希望尽快读完
+  if (cam_serial.available() >= 4 && cam_state == STATE_WaitSize) {
+    uint8_t size_buf[4];
+    cam_serial.readBytes(size_buf, 4);
+    cam_body_len = size_buf[0] | (size_buf[1] << 8) | (size_buf[2] << 16) |
+                   (size_buf[3] << 24);
+
+    if (cam_body_len > 0 && cam_body_len < 100000) {
+      if (cam_img_buffer)
+        free(cam_img_buffer);
+      cam_img_buffer = (uint8_t *)malloc(cam_body_len);
+      if (cam_img_buffer) {
+        cam_state = STATE_ReadingBody;
+        cam_read_count = 0;
+        // 【关键修改】用户要求只发送“视频帧时刻”的点云。
+        // 因此，当检测到新的一帧图片开始时，清空之前的 LiDAR 缓存。
+        // 这样发送出去的混合包里，LiDAR 数据仅仅包含“接收图片期间”产生的数据。
+        lidar_staging_len = 0;
+      } else {
+        // 内存不足
+      }
     }
   }
 
-  // ========== 低优先级: 状态上报 (1Hz) ==========
+  if (cam_state == STATE_ReadingBody && cam_img_buffer) {
+    // 尽可能多读，但不要死循环卡死整个系统
+    size_t avail = cam_serial.available();
+    if (avail > 0) {
+      size_t to_read = min((uint32_t)avail, cam_body_len - cam_read_count);
+      // 限制每次 loop 读的上限？不，串口读取很快，读完缓冲区即可
+      cam_serial.readBytes(cam_img_buffer + cam_read_count, to_read);
+      cam_read_count += to_read;
+    }
+
+    if (cam_read_count >= cam_body_len) {
+      // 接收完毕 -> 发送混合包
+      flush_mixed_data(cam_img_buffer, cam_body_len);
+
+      status_led.setPixelColor(0, status_led.Color(0, 255, 0));
+      status_led.show();
+      led_off_time = millis() + 100;
+      free(cam_img_buffer);
+      cam_img_buffer = NULL;
+      cam_state = STATE_WaitSize;
+    }
+  }
+
+  // ========== 3. 缓存 LiDAR 数据 ==========
+  int uart_available = lidar_serial.available();
+  if (uart_available > 0) {
+    // 临时缓冲区读出来
+    uint8_t temp_buf[2048];
+    int read_len = min(uart_available, (int)sizeof(temp_buf));
+    lidar_serial.readBytes(temp_buf, read_len);
+    total_lidar_bytes += read_len;
+
+    // 存入 Staging Buffer
+    buffer_lidar_data(temp_buf, read_len);
+  }
+
+  // 保护：如果 LiDAR 缓冲区太满 (例如相机很久没发图)，强制单独发送 LiDAR
+  // 这里为了复用 flush_mixed_data，我们可以发一个空的相机包
+  if (lidar_staging_len > 30000) {
+    flush_mixed_data(NULL, 0);
+  }
+
+  // LED 自动关闭逻辑
+  if (led_off_time > 0 && millis() > led_off_time) {
+    status_led.setPixelColor(0, status_led.Color(0, 0, 0));
+    status_led.show();
+    led_off_time = 0;
+  }
+  ws_server.loop();
+
+  // ========== 4. 状态上报 (1Hz) ==========
   uint32_t now = millis();
   if (now - last_status_time >= 1500) {
     send_status();
     last_status_time = now;
   }
-
-  // // ========== 调试日志 (5s) ==========
-  // if (now - last_log_time >= 5000) {
-  //   Serial.printf("[Stats] Heap=%uKB, LiDAR=%luKB, Clients=%d\n",
-  //                 ESP.getFreeHeap() / 1024, total_lidar_bytes / 1024,
-  //                 ws_server.connectedClients());
-  //   last_log_time = now;
-  // }
-
-  // 不要 delay，让 loop 尽快返回以处理串口数据
 }
