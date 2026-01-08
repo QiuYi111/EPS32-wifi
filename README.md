@@ -1,97 +1,89 @@
-# ESP32-S3 Unitree LiDAR Bridge
+# ESP32-S3 宇树激光雷达 + OpenMV 视频图传网关
 
-This PlatformIO project turns an ESP32-S3-DevKitM (default target: `esp32-s3-devkitc-1`) into a UART-to-Wi-Fi bridge for Unitree LiDAR L1 data. The firmware:
-- opens a high-speed UART to the LiDAR (default 2 Mbps on `Serial1`)
-- parses MAVLink frames to expose IMU and point-cloud streams through `UnitreeMavlinkParser`/`LidarPipeline`
-- drives LiDAR control commands (work mode, LED ring, flash save, reboot) via the new `UnitreeMavlinkController`
+本项目将 **ESP32-S3** 打造成一个高性能的中枢网关，同时桥接 **Unitree LiDAR L1**（激光雷达）和 **OpenMV**（摄像头），通过 WiFi 将同步好的**点云数据**和**视频画面**实时传输到 3D WebUI 界面。
 
-All Unitree protocol headers and binaries live under `include/unitree_lidar_sdk/`; they come straight from Unitree’s official SDK so we stay bug-compatible with upstream firmware.
+## 核心功能
+*   **双路 UART 桥接**: 同时处理高速雷达数据 (2Mbps) 和 视频流数据 (921600bps)。
+*   **帧同步传输 (Snapshot Mode)**: 采用“快照模式”，以视频帧为基准打包点云数据。彻底解决 WiFi 抢占问题，实现**声画同步**（点云与画面时间轴严格对应）。
+*   **沉浸式 WebUI**:
+    *   **分屏显示**: 左侧 3D 点云 (Three.js)，右侧高清实时图传。
+    *   **交互控制**: 虚拟摇杆控制电机，实时显示 FPS、CPU 温度、WiFi 信号等。
+    *   **极低延迟**: 采用简化的二进制协议，响应速度极快。
+*   **电机控制**: 支持双路电机 PWM/刹车控制。
 
-## Hardware Checklist
-- ESP32-S3-DevKitC-1 (or any Arduino-compatible ESP32-S3 board)
-- Unitree LiDAR L1 with UART cable
-- 5 V power budget ≥ 1.5 A (LiDAR spin-up current)
-- UART wiring (default pins can be overridden through `UNITREE_RX_PIN` / `UNITREE_TX_PIN` build flags):
-  - ESP32 RX ← LiDAR TX
-  - ESP32 TX → LiDAR RX
-  - Common GND
-  - Leave LiDAR’s USB-C connected for power/firmware when needed, but use only one data path at a time
+## 1. 硬件准备
 
-## Repository Layout
-- `src/main.cpp` — minimal firmware: sets up the UART, parses MAVLink, prints IMU + point-cloud hints, and forces the LiDAR into NORMAL mode at boot.
-- `lib/unitree_mavlink/` — ESP32-native helpers:
-  - `UnitreeMavlink.h/.cpp` — byte-by-byte MAVLink parser + point cloud assembler
-  - `UnitreeMavlinkControl.h/.cpp` — high-level control wrapper around Unitree’s MAVLink commands
-- `include/unitree_lidar_sdk/` — vendor SDK (headers, prebuilt libs, docs, examples)
-- `examples/unitree_mavlink_demo/` — standalone Arduino sketch showing how to log LiDAR data
-- `host.py` — legacy TCP echo helper; update when exposing LiDAR data over Wi-Fi
+*   **ESP32-S3 开发板**: 推荐 DevKitC-1 (USB-C 供电能力需充足)。
+*   **Unitree LiDAR L1**: 宇树科技激光雷达。
+*   **OpenMV Cam**: 推荐 H7 或 Plus 版本（需支持高波特率 921600）。
+*   **电机驱动模块**: 如 L298N 或其他适配的双路电机驱动。
 
-## Introducing `UnitreeMavlinkController`
-`UnitreeMavlinkController` lives next to the parser and removes the need to handcraft MAVLink commands on the ESP32:
+## 2. 接线指南 (非常重要)
 
-```cpp
-#include "UnitreeMavlinkControl.h"
+**注意**: 所有设备必须**共地 (GND 相连)**，否则通讯会乱码！
 
-HardwareSerial &lidar_serial = Serial1;
-UnitreeMavlinkController controller(lidar_serial);
+| ESP32 引脚 | 连接方向 | 外部设备引脚 | 功能说明 |
+| :--- | :---: | :--- | :--- |
+| **GPIO 16** | `RX <- TX` | LiDAR **TX** | 雷达数据输入 (2Mbps) |
+| **GPIO 15** | `TX -> RX` | LiDAR **RX** | 雷达指令输出 |
+| **GPIO 18** | `RX <- TX` | OpenMV **P4 (TX)**| 视频数据输入 (921600bps) |
+| **GPIO 17** | `TX -> RX` | OpenMV **P5 (RX)**| *预留控制* |
+| **GPIO 48** | `板载` | NeoPixel LED | 状态指示灯 (绿色闪烁=正常) |
+| **GND** | `---` | **GND** | **电源地 (必须连接)** |
 
-void setup() {
-  lidar_serial.begin(2000000, SERIAL_8N1, UNITREE_RX_PIN, UNITREE_TX_PIN);
+> **供电建议**：ESP32 和 雷达建议使用独立稳压电源，避免电机启动时拉低电压导致复位。
 
-  controller.set_work_mode(UnitreeMavlinkController::WorkMode::kNormal);
-  controller.set_led_pattern(UnitreeMavlinkController::LedPattern::kSixStageBreathing);
+## 3. 软件配置与烧录
 
-  UnitreeMavlinkController::LedTable table{};
-  table.fill(0xFF);
-  controller.set_led_table(table);  // command-mode full ring on
-}
-```
+### 第一步：配置 OpenMV
+1.  使用 OpenMV IDE 打开项目中的 `openMV/capture.py` 文件。
+2.  连接 OpenMV 摄像头。
+3.  点击菜单栏 **Tools** -> **Save open script to OpenMV Cam (as main.py)**。
+4.  **复位摄像头**。
+    *   **红灯亮**: 正在抓拍图片。
+    *   **绿灯亮**: 正在通过串口发送图片。
 
-Available helpers:
-- `set_work_mode(WorkMode::kNormal / kStandby / kRaw)`  
-- `set_led_pattern(...)` (built-in animations)  
-- `set_led_table(...)` (45-byte custom bitmap, command mode)  
-- `save_configuration()` (Unitree flash save)  
-- `reboot_device()` (soft reboot)
+### 第二步：烧录 ESP32 固件
+1.  确保电脑已安装 **PlatformIO** (VSCode 插件)。
+2.  连接 ESP32 到电脑 USB。
+3.  在终端运行烧录命令：
+    ```bash
+    pio run -t upload
+    ```
+4.  烧录完成后，复位 ESP32。
 
-Each call serializes the proper MAVLink packet and pushes it onto the bound `Stream`. No extra buffers or RTOS tasks required.
+### 第三步：连接与使用
+1.  **WiFi 连接**: 电脑或手机搜索 WiFi 热点。
+    *   **SSID**: `ESP32-Robot`
+    *   **密码**: `12345678`
+2.  **打开 WebUI**:
+    *   由于我们使用本地文件开发，直接用浏览器打开 `webui/frontend/index.html`。
+    *   (如果你已将网页上传到 SPIFFS，则访问 `http://192.168.4.1`)
+    *   如果页面没有数据，请检查 `script.js` 中的 `defaultWsUrl` IP 地址配置（默认是网关 IP）。
 
-## Building and Flashing
-```bash
-pio run                     # build firmware
-pio run -t upload           # flash via USB
-pio device monitor -b 115200  # view logs
-```
+## 4. 状态指示与排错
 
-Boot messages include `[Unitree Demo] booting` and IMU prints once MAVLink traffic flows. If the monitor stays silent, press the EN button, double-check UART wiring, and keep `Serial.begin(115200)` attached to USB CDC (`ARDUINO_USB_CDC_ON_BOOT=1` is already set).
+### ESP32 板载 LED 状态
+*   **绿色闪烁**: 成功接收到 OpenMV 的完整图片，并已打包点云发送给前端。
+*   **不亮**: 
+    *   检查 OpenMV 是否有电。
+    *   检查接线 RX/TX 是否接反 (ESP32 GPIO 18 应接 OpenMV P4)。
+    *   检查波特率是否匹配 (默认 921600)。
 
-## Quick Serial Sanity Checklist
-1. Connect LiDAR → ESP32 UART, power everything.
-2. Open `pio device monitor`.
-3. Reset the ESP32. Expected timeline:
-   - `[Unitree Demo] booting`
-   - `[Unitree Demo] UART ready (baud=2000000, RX=18, TX=17)`
-   - `Unitree` mode command acknowledged (no serial ack; check LiDAR behavior)
-   - IMU packets stream at ~200 Hz (`[IMU] packet=...`)
-4. If the LiDAR keeps spinning but no data shows up:
-   - confirm baud rate (early firmware shipped at 921 600)
-   - ensure LiDAR isn’t still opened over USB by a desktop program
-   - verify common ground
+### 常见问题
+*   **画面倒置**: 默认为了适配小车安装方式，WebUI 将画面垂直翻转了。如需调整，请修改 `style.css` 中的 `#camera-feed` 样式。
+*   **WebUI 无画面**: 
+    *   按 F12 打开浏览器控制台。
+    *   查看 WebSocket 是否连接成功 (`[WS] Connected`).
+    *   查看 `MIXED_DATA` 数据包是否到达。
 
-## Wi-Fi & Future Work
-`host.py` currently targets the legacy echo firmware. Rework it to publish LiDAR data (e.g., UDP, TCP, or WebSocket) once the ESP32 side exports the necessary buffers. If you add network features, remember:
-- keep `src/secrets.h` ignored; clone from `src/secrets.example.h`
-- document new TCP/UDP ports in this README and `platformio.ini`
-- add Unity tests under `test/` for any protocol changes (`pio test -e esp32-s3-devkitc-1`)
+## 5. 技术架构 (进阶)
 
-## Upstream SDK Notes
-- The headers under `include/unitree_lidar_sdk/include/mavlink/` define every MAVLink frame Unitree devices speak (`CONFIG_LIDAR_WORKING_MODE`, `CONFIG_LED_RING_TABLE_PACKET`, etc.).
-- The vendor examples (`include/unitree_lidar_sdk/examples/`) show desktop usage. Use them when sanity-checking ESP32 behavior against a PC.
-- Version tracking lives in `include/unitree_lidar_sdk/include/unitree_lidar_sdk_config.h` (`1.0.16`). Update this folder wholesale if you take a newer SDK drop.
+本系统采用独特的**混合数据包 (Mixed Data Packaging)** 策略来解决 WiFi 拥塞问题：
 
-## Troubleshooting (Hard Truths)
-- LiDAR spins but no packets: UART wires wrong or missing ground.
-- LiDAR never leaves standby: make sure `set_work_mode()` runs after serial init and that the pattern commands aren’t stuck in command-table mode.
-- ESP32 brownouts when LiDAR starts: supply can’t handle inrush—use a separate 5 V rail or beefier regulator.
-- Still lost? Capture raw UART bytes with a logic analyzer and compare against Unitree’s PC SDK. The protocol isn’t magic—if the frames aren’t there, you’re not sending them.
+1.  **缓冲区**: ESP32 内部维护一个 32KB 的**暂存缓冲区**，专门暂存高速雷达数据。
+2.  **快照触发**: 当 OpenMV 开始发送新的一帧图片时，ESP32 **立即清空**缓冲区（Snapshot Mode），只保留从这一刻开始接收的雷达数据。
+3.  **打包发送**: 图片传输完成后，ESP32 将 `[图片长度]` + `[JPEG数据]` + `[缓冲区内的雷达数据]` 打包成一个 `PKT_MIXED_DATA (Type 6)` 数据包。
+4.  **前端解析**: WebUI 收到包后，先渲染图片，再将剩余的点云数据喂给 3D 引擎。
 
+**核心优势**: 确保了只要你看到这帧画面，此刻屏幕上的点云就是这帧画面期间扫描到的，完全消除了时间轴错位。
